@@ -115,6 +115,7 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
   bool _isFollowed = false;
   String? _currentMobileNo;
   String? _username;
+  String? _currentImage;
   int count = 0;
   int _numberOfFollowers = 0;
   int _numberOfComments = 0;
@@ -153,6 +154,7 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
       Map userInfo = userProvider.currentUserMap;
       _currentMobileNo = userInfo['mobileNo'];
       _username = userInfo['username'];
+      _currentImage=userInfo['profileImageLink'];
     });
 
     _getCommentsNumber(animalProvider, petId);
@@ -162,8 +164,8 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
   }
 
   _addAnimalOwnerInMyFollowings(AnimalProvider animalProvider,
-      String currentMobileNo, String mobile, String username) async {
-    await animalProvider.myFollowings(currentMobileNo, mobile, username);
+      String currentMobileNo, String mobileNo, String followingName,String followerName,String followingImage,String followerImage) async {
+    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,followerName,followingImage,followerImage);
   }
 
   _isFollowerOrNot(
@@ -344,7 +346,7 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
                         petId, _currentMobileNo!, _username!);
                     _getFollowersNumber(animalProvider, petId);
                     _addAnimalOwnerInMyFollowings(
-                        animalProvider, _currentMobileNo!, mobile, username);
+                        animalProvider, _currentMobileNo!, mobile,widget.username, _username!,widget.profileImageLink,_currentImage!);
                   }
                   if (_isFollowed == false) {
                     _getFollowersNumber(animalProvider, petId);

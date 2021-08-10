@@ -69,7 +69,13 @@ class _HomeNavState extends State<HomeNav> {
       });
     });
   }
-
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    AnimalProvider animalProvider = Provider.of<AnimalProvider>(context, listen: false);
+    animalProvider.getAllChatUser();
+  }
   @override
   Widget build(BuildContext context) {
     final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);

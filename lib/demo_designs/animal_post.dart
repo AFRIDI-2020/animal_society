@@ -104,6 +104,7 @@ class _AnimalPostState extends State<AnimalPost> {
   bool _isFollowed = false;
   String? _currentMobileNo;
   String? _username;
+  String? _currentImage;
   int count = 0;
   int _numberOfFollowers = 0;
   int _numberOfComments = 0;
@@ -142,6 +143,7 @@ class _AnimalPostState extends State<AnimalPost> {
       Map userInfo = userProvider.currentUserMap;
       _currentMobileNo = userInfo['mobileNo'];
       _username = userInfo['username'];
+      _currentImage=userInfo['profileImageLink'];
     });
 
     _getCommentsNumber(animalProvider, petId);
@@ -151,8 +153,8 @@ class _AnimalPostState extends State<AnimalPost> {
   }
 
   _addAnimalOwnerInMyFollowings(AnimalProvider animalProvider,
-      String currentMobileNo, String mobile, String username) async {
-    await animalProvider.myFollowings(currentMobileNo, mobile, username);
+      String currentMobileNo, String mobileNo, String followingName,String followerName,String followingImage,String followerImage) async {
+    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,followerName,followingImage,followerImage);
   }
 
   _isFollowerOrNot(
@@ -323,13 +325,14 @@ class _AnimalPostState extends State<AnimalPost> {
                         petId, _currentMobileNo!, _username!);
                     _getFollowersNumber(animalProvider, petId);
                     _addAnimalOwnerInMyFollowings(
-                        animalProvider, _currentMobileNo!, mobile, username);
+                        animalProvider, _currentMobileNo!, mobile,widget.username, _username!,widget.profileImageLink,_currentImage!);
                   }
                   if (_isFollowed == false) {
                     animalProvider.removeFollower(petId, _currentMobileNo!);
                     _getFollowersNumber(animalProvider, petId);
                     _removeFollowing(
                         animalProvider, _currentMobileNo!, mobile, username);
+                    animalProvider.deleteChat(mobile, _currentMobileNo!);
                   }
                 });
               },
