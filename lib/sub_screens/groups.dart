@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_lover/home.dart';
 import 'package:pet_lover/model/group.dart';
 
 import 'package:pet_lover/model/myGroup.dart';
@@ -64,7 +65,8 @@ class _GroupsState extends State<Groups> {
             color: Colors.black,
           ),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.push(
+                context, MaterialPageRoute(builder: (context) => Home()));
           },
         ),
         elevation: 0.0,
@@ -72,7 +74,9 @@ class _GroupsState extends State<Groups> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
-              context, MaterialPageRoute(builder: (context) => CreateGroup()));
+              context,
+              MaterialPageRoute(
+                  builder: (context) => CreateGroup(groupId: '')));
         },
         child: Icon(Icons.add),
       ),

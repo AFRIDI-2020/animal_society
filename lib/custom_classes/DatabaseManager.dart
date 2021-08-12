@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart' as firebase_core;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DatabaseManager {
   CollectionReference usersCollection =
@@ -50,6 +51,27 @@ class DatabaseManager {
     }
   }
 
+  Future<bool> UpdateAnimalsData(
+      Map<String, String> map, String _currentMobileNo) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection("Animals")
+          .doc(map['id'])
+          .update(map);
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentMobileNo)
+          .collection('my_pets')
+          .doc(map['id'])
+          .update(map);
+
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   Future<void> updateUserInfo(String username, String mobileNo, String address,
       String registrationDate, String profileImageLink, String about) async {
     return await usersCollection.doc(mobileNo).update({
@@ -80,8 +102,8 @@ class DatabaseManager {
     }
   }
 
-  Future<bool> checkMobileNoPassword(String mobileNo, String password) async {
-    bool matched = false;
+  Future<String> checkMobileNoPassword(String mobileNo, String password) async {
+    String _error = '';
 
     try {
       await usersCollection
@@ -91,18 +113,18 @@ class DatabaseManager {
         if (documentSnapshot.exists) {
           dynamic nested = documentSnapshot.get(FieldPath(['password']));
           if (nested.toString() == password) {
-            matched = true;
           } else {
-            matched = false;
+            _error = 'Incorrect password';
           }
         } else {
+          _error = 'Not registered';
           print('Document does not exist on the database');
         }
       });
-      return matched;
+      return _error;
     } catch (e) {
       print('Login error - ${e.toString()}');
-      return false;
+      return _error;
     }
   }
 
@@ -156,5 +178,18 @@ class DatabaseManager {
       print('Number of followers cannot be showed - $error');
       return _numberOfComments;
     }
+  }
+
+  clearSharedPref() async {
+    final _prefs = await SharedPreferences.getInstance();
+    await _prefs.clear();
+  }
+
+  Future<String> getCurrentMobileNo() async {
+    final _prefs = await SharedPreferences.getInstance();
+    final _currentMobileNo = _prefs.getString('mobileNo') ?? null;
+    String _currentUserMobile = _currentMobileNo!;
+    print('Current Mobile no given by userProvider is $_currentMobileNo');
+    return _currentUserMobile;
   }
 }

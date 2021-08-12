@@ -179,7 +179,7 @@ class _AccountNavState extends State<AccountNav> {
               ProfileOption().showOption(context, 'Groups'),
               ProfileOption().showOption(context, 'My animals'),
               ProfileOption().showOption(context, 'Shared animals'),
-              ProfileOption().showOption(context, 'My followers')
+              ProfileOption().showOption(context, 'My followers'),
             ],
           ),
         ),

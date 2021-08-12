@@ -94,6 +94,101 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateGroup(
+      BuildContext context,
+      String groupName,
+      String currentMobileNo,
+      File? image,
+      String id,
+      String privacy,
+      String description,
+      UserProvider userProvider,
+      String groupPhoto) async {
+    String groupImg = '';
+    Reference groupStorageRef =
+        FirebaseStorage.instance.ref().child('group_photos').child(id);
+    if (image != null) {
+      UploadTask groupPhotoUploadTask = groupStorageRef.putFile(image);
+      TaskSnapshot taskSnapshot;
+      groupPhotoUploadTask.then((value) {
+        taskSnapshot = value;
+        taskSnapshot.ref.getDownloadURL().then((imageDownloadLink) {
+          groupImg = imageDownloadLink;
+          updateGroupInfo(context, id, groupName, groupImg, currentMobileNo,
+              privacy, description, userProvider);
+        });
+      });
+    } else {
+      groupImg = groupPhoto;
+      updateGroupInfo(context, id, groupName, groupImg, currentMobileNo,
+          privacy, description, userProvider);
+    }
+  }
+
+  Future<void> updateGroupInfo(
+      BuildContext context,
+      String uuid,
+      String groupName,
+      String groupImage,
+      String currentMobileNo,
+      String privacy,
+      String description,
+      UserProvider userProvider) async {
+    Map<String, String> userInfo = {};
+    String date = DateTime.now().millisecondsSinceEpoch.toString();
+
+    DocumentReference groupCollection =
+        FirebaseFirestore.instance.collection('Groups').doc(uuid);
+
+    DocumentReference myGroups = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentMobileNo)
+        .collection('myGroups')
+        .doc(uuid);
+
+    DocumentReference memberRef = FirebaseFirestore.instance
+        .collection('Groups')
+        .doc(uuid)
+        .collection('members')
+        .doc(currentMobileNo);
+
+    await userProvider.getCurrentUserInfo().then((value) {
+      userInfo = userProvider.currentUserMap;
+    });
+
+    await myGroups.update({
+      'groupName': groupName,
+      'groupImage': groupImage,
+      'date': date,
+      'admin': currentMobileNo,
+      'id': uuid,
+      'privacy': privacy,
+      'description': description,
+      'myRole': 'admin'
+    });
+
+    await memberRef.update({
+      'date': date,
+      'mobileNo': currentMobileNo,
+      'profileImageLink': userInfo['profileImageLink'],
+      'username': userInfo['username'],
+      'memberRole': 'admin'
+    });
+
+    await groupCollection.update({
+      'groupName': groupName,
+      'groupImage': groupImage,
+      'date': date,
+      'admin': currentMobileNo,
+      'id': uuid,
+      'privacy': privacy,
+      'description': description
+    }).then((value) {
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => Groups()));
+    });
+  }
+
   Future<void> saveGroupInfo(
       BuildContext context,
       String uuid,
@@ -550,6 +645,52 @@ class GroupProvider extends ChangeNotifier {
     } catch (error) {
       print('Error: $error');
       return [];
+    }
+  }
+
+  Future<void> leaveGroup(UserProvider userProvider, String groupId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('Groups')
+          .doc(groupId)
+          .collection('members')
+          .doc(userProvider.currentUserMobile)
+          .delete();
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userProvider.currentUserMobile)
+          .collection('myGroups')
+          .doc(groupId)
+          .delete();
+    } catch (error) {
+      print('Leaving group failed! - $error');
+    }
+  }
+
+  Future<void> deleteGroup(BuildContext context, String groupId,
+      String groupImage, UserProvider userProvider) async {
+    try {
+      if (groupImage != '') {
+        Reference storageRef = FirebaseStorage.instance.refFromURL(groupImage);
+        await storageRef.delete();
+      }
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userProvider.currentUserMobile)
+          .collection('myGroups')
+          .doc(groupId)
+          .delete();
+      await FirebaseFirestore.instance
+          .collection('Groups')
+          .doc(groupId)
+          .delete()
+          .then((value) {
+        Navigator.push(
+            context, MaterialPageRoute(builder: (context) => Groups()));
+      });
+    } catch (error) {
+      print('Deleting group failed - $error');
     }
   }
 }

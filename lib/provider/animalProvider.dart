@@ -23,7 +23,7 @@ class AnimalProvider extends ChangeNotifier {
   int _userAnimalNumber = 0;
   int _userFollowersNumber = 0;
   List<Animal> _searchedAnimals = [];
-  List<ChatUserModel> _chatUserList= <ChatUserModel>[];
+  List<ChatUserModel> _chatUserList = <ChatUserModel>[];
 
   get numberOfFollowers => _numberOfFollowers;
   get favouriteList => _favouriteList;
@@ -39,7 +39,7 @@ class AnimalProvider extends ChangeNotifier {
   get userFollowersNumber => _userFollowersNumber;
   get userSharedAnimals => _userSharedAnimals;
   get searchedAnimals => _searchedAnimals;
-  get chatUserList=> _chatUserList;
+  get chatUserList => _chatUserList;
 
   Future<List<Animal>> getAnimals(int limit) async {
     print('getAnimals() running');
@@ -270,7 +270,13 @@ class AnimalProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> myFollowings(String _currentMobileNo, String mobileNo, String followingName,String followerName,String followingImage,String followerImage) async {
+  Future<void> myFollowings(
+      String _currentMobileNo,
+      String mobileNo,
+      String followingName,
+      String followerName,
+      String followingImage,
+      String followerImage) async {
     try {
       if (mobileNo != _currentMobileNo) {
         await FirebaseFirestore.instance
@@ -287,19 +293,22 @@ class AnimalProvider extends ChangeNotifier {
             .doc(_currentMobileNo)
             .set({
           'follower': _currentMobileNo,
-        }).then((value)async{
-          await FirebaseFirestore.instance.collection('chatUsers').doc(_currentMobileNo+mobileNo).set({
-            'id' : _currentMobileNo,
-            'followingName' : followingName,
-            'followerName' : followerName,
-            'followingImageLink' : followingImage,
-            'followerImageLink' : followerImage,
-            'followerNumber':_currentMobileNo,
-            'followingNumber':mobileNo,
-            'lastMessage' : 'You can now chat with this animal owner',
+        }).then((value) async {
+          await FirebaseFirestore.instance
+              .collection('chatUsers')
+              .doc(_currentMobileNo + mobileNo)
+              .set({
+            'id': _currentMobileNo,
+            'followingName': followingName,
+            'followerName': followerName,
+            'followingImageLink': followingImage,
+            'followerImageLink': followerImage,
+            'followerNumber': _currentMobileNo,
+            'followingNumber': mobileNo,
+            'lastMessage': 'You can now chat with this animal owner',
             'lastMessageTime': Timestamp.now(),
             'isSeen': false
-          }).then((value)async{
+          }).then((value) async {
             await getAllChatUser();
           });
         });
@@ -308,50 +317,59 @@ class AnimalProvider extends ChangeNotifier {
       print('Cannot add in followings ... error = $error');
     }
   }
-  Future<void>updateSeen(String followerMobileNo,String followingMobileNo)async{
+
+  Future<void> updateSeen(
+      String followerMobileNo, String followingMobileNo) async {
     final refUsers3 = FirebaseFirestore.instance.collection('chatUsers');
-    await refUsers3.doc(followerMobileNo+followingMobileNo).update({
-      'isSeen': true
-    });
+    await refUsers3
+        .doc(followerMobileNo + followingMobileNo)
+        .update({'isSeen': true});
   }
 
-  Future<void> uploadMessage(String message,String senderName,String senderMobile,String followerNumber,String followingNumber,String followingName,String followerName) async {
-
-
-    final refMessages1 = FirebaseFirestore.instance.collection('Chats/$followerNumber $followingNumber/messages');
+  Future<void> uploadMessage(
+      String message,
+      String senderName,
+      String senderMobile,
+      String followerNumber,
+      String followingNumber,
+      String followingName,
+      String followerName) async {
+    final refMessages1 = FirebaseFirestore.instance
+        .collection('Chats/$followerNumber $followingNumber/messages');
     final refUsers = FirebaseFirestore.instance.collection('chatUsers');
-
 
     await refMessages1.add({
       'text': message,
-      'sender':senderMobile,
+      'sender': senderMobile,
       'senderName': senderName,
       'follower': followerName,
       'following': followingName,
       "timestamp": Timestamp.now(),
-    }).then((value)async{
-      await refUsers.doc(followerNumber+followingNumber).update({
-        'id' : followerNumber,
-        'followingName' : followingName,
-        'followerName' : followerName,
-        'followerNumber':followerNumber,
-        'followingNumber':followingNumber,
-        'lastMessage' : message,
+    }).then((value) async {
+      await refUsers.doc(followerNumber + followingNumber).update({
+        'id': followerNumber,
+        'followingName': followingName,
+        'followerName': followerName,
+        'followerNumber': followerNumber,
+        'followingNumber': followingNumber,
+        'lastMessage': message,
         'lastMessageTime': Timestamp.now(),
         'isSeen': false
       });
-
     });
     notifyListeners();
-
   }
 
-  Future<void> getAllChatUser()async{
-    try{
-      await FirebaseFirestore.instance.collection('chatUsers').orderBy('lastMessageTime',descending: true).get().then((snapShot){
+  Future<void> getAllChatUser() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('chatUsers')
+          .orderBy('lastMessageTime', descending: true)
+          .get()
+          .then((snapShot) {
         _chatUserList.clear();
         snapShot.docChanges.forEach((element) {
-          ChatUserModel chatUsers=ChatUserModel(
+          ChatUserModel chatUsers = ChatUserModel(
               id: element.doc['id'],
               followingName: element.doc['followingName'],
               followerName: element.doc['followerName'],
@@ -361,20 +379,23 @@ class AnimalProvider extends ChangeNotifier {
               followingNumber: element.doc['followingNumber'],
               lastMessage: element.doc['lastMessage'],
               lastMessageTime: element.doc['lastMessageTime'],
-              isSeen:element.doc['isSeen']
-          );
+              isSeen: element.doc['isSeen']);
           _chatUserList.add(chatUsers);
         });
         return _chatUserList;
       });
       notifyListeners();
-    }catch(error){
+    } catch (error) {
       print(error.toString());
     }
   }
 
-  Future<void> deleteChat(String followingNumber,String followerNumber)async {
-    await FirebaseFirestore.instance.collection('chatUsers').doc(followerNumber+followingNumber).delete().then((value)async{
+  Future<void> deleteChat(String followingNumber, String followerNumber) async {
+    await FirebaseFirestore.instance
+        .collection('chatUsers')
+        .doc(followerNumber + followingNumber)
+        .delete()
+        .then((value) async {
       await getAllChatUser();
     });
   }
@@ -464,6 +485,7 @@ class AnimalProvider extends ChangeNotifier {
           video: element.doc['video'],
         );
         _currentUserAnimals.add(animal);
+        notifyListeners();
       });
     } catch (error) {
       print('Error: $error');
@@ -664,8 +686,8 @@ class AnimalProvider extends ChangeNotifier {
           myAnimalRef.delete();
         }
       });
-      // notifyListeners();
-      _currentUserAnimals.removeWhere((element) => element.id == petId);
+      notifyListeners();
+
       print('deleted animal $petId}');
     } catch (error) {
       print('Deleting animal failed - $error');

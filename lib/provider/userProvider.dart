@@ -46,17 +46,24 @@ class UserProvider extends ChangeNotifier {
     return _currentMobileNo;
   }
 
-  Future<void> getMyFollowingsNumber() async {
-    String? _currentMobileNo = await getCurrentMobileNo();
-    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_currentMobileNo)
-        .collection('myFollowings')
-        .get();
+  Future<String?> getSharedPref() async {
+    final _prefs = await SharedPreferences.getInstance();
+    final _currentMobileNo = _prefs.getString('mobileNo') ?? null;
+    return _currentMobileNo;
+  }
 
-    if (querySnapshot.docs.isNotEmpty) {
-      _mFollowing = querySnapshot.docs.length;
-    }
+  Future<void> getMyFollowingsNumber() async {
+    CollectionReference _myFollowingRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUserMobile)
+        .collection('myFollowings');
+
+    _myFollowingRef.get().then((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        _mFollowing = snapshot.docs.length;
+      }
+      print('$_currentUserMobile is following $_mFollowing persons');
+    });
   }
 
   Future<void> getSpecificUserInfo(String mobileNo) async {
@@ -87,7 +94,7 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> getAllFollowers(String userMobileNo) async {
+  Future<bool> getAllFollowers(String userMobileNo) async {
     try {
       _followerList.clear();
       print('getting all followers...');
@@ -112,8 +119,10 @@ class UserProvider extends ChangeNotifier {
           });
         });
       });
+      return Future.value(true);
     } catch (error) {
       print('getting all followers failed - $error');
+      return Future.value(false);
     }
   }
 

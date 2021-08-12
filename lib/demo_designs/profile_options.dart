@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:pet_lover/custom_classes/DatabaseManager.dart';
 import 'package:pet_lover/login.dart';
 import 'package:pet_lover/sub_screens/EditProfile.dart';
 import 'package:pet_lover/sub_screens/addAnimal.dart';
 import 'package:pet_lover/sub_screens/confirm_pass.dart';
 import 'package:pet_lover/sub_screens/forgot_pass.dart';
 import 'package:pet_lover/sub_screens/groups.dart';
+import 'package:pet_lover/sub_screens/myFollowers.dart';
+import 'package:pet_lover/sub_screens/myFollowing.dart';
 import 'package:pet_lover/sub_screens/mySharedAnimals.dart';
 import 'package:pet_lover/sub_screens/my_animals.dart';
 import 'package:pet_lover/sub_screens/pass_update.dart';
@@ -14,6 +17,7 @@ import 'package:pet_lover/sub_screens/reset_password.dart';
 class ProfileOption {
   Widget showOption(BuildContext context, String title) {
     Size size = MediaQuery.of(context).size;
+
     return ListTile(
         title: Text(
           '$title',
@@ -65,6 +69,7 @@ class ProfileOption {
               )
             : null,
         onTap: () {
+          Future<String> mobileNo;
           title == 'Add animals'
               // ignore: unnecessary_statements
               ? {
@@ -113,14 +118,27 @@ class ProfileOption {
                                               builder: (context) =>
                                                   EditProfileUser()))
                                     }
-                                  // ignore: unnecessary_statements
-                                  : {
-                                      Navigator.pushAndRemoveUntil(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (context) => Login()),
-                                          (route) => false)
-                                    };
+                                  : title == 'My followers'
+                                      // ignore: unnecessary_statements
+                                      ? {
+                                          mobileNo = DatabaseManager()
+                                              .getCurrentMobileNo(),
+                                          Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      MyFollowers()))
+                                        }
+                                      // ignore: unnecessary_statements
+                                      : {
+                                          DatabaseManager().clearSharedPref(),
+                                          Navigator.pushAndRemoveUntil(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      Login()),
+                                              (route) => false)
+                                        };
         });
   }
 }

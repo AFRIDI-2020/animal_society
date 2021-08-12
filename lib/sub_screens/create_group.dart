@@ -11,13 +11,17 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 class CreateGroup extends StatefulWidget {
-  const CreateGroup({Key? key}) : super(key: key);
+  String groupId;
+  CreateGroup({Key? key, required this.groupId}) : super(key: key);
 
   @override
-  _CreateGroupState createState() => _CreateGroupState();
+  _CreateGroupState createState() => _CreateGroupState(groupId);
 }
 
 class _CreateGroupState extends State<CreateGroup> {
+  String groupId;
+  _CreateGroupState(this.groupId);
+
   String _choosenValue = 'Public';
   List<String> _groupPrivacies = ['Public', 'Private'];
 
@@ -30,6 +34,7 @@ class _CreateGroupState extends State<CreateGroup> {
   String? _groupNameError;
   String? _descriptionError;
   String? _currentMobileNo;
+  String _groupPhoto = '';
   int count = 0;
 
   @override
@@ -62,6 +67,7 @@ class _CreateGroupState extends State<CreateGroup> {
   Future _getCameraImage() async {
     final _originalImage =
         await ImagePicker().getImage(source: ImageSource.camera);
+    _groupPhoto = '';
 
     if (_originalImage != null) {
       File? _croppedImage = await ImageCropper.cropImage(
@@ -80,6 +86,7 @@ class _CreateGroupState extends State<CreateGroup> {
   Future _getGalleryImage() async {
     final _originalImage =
         await ImagePicker().getImage(source: ImageSource.gallery);
+    _groupPhoto = '';
 
     if (_originalImage != null) {
       File? _croppedImage = await ImageCropper.cropImage(
@@ -95,18 +102,28 @@ class _CreateGroupState extends State<CreateGroup> {
     }
   }
 
-  Future _customInit(UserProvider userProvider) async {
+  Future _customInit(
+      UserProvider userProvider, GroupProvider groupProvider) async {
     _currentMobileNo = await userProvider.getCurrentMobileNo();
     setState(() {
       count++;
     });
+
+    if (groupId != '') {
+      await groupProvider.getGroupInfo(groupId).then((value) {
+        _groupNameController.text = groupProvider.groupInfo['groupName'];
+        _choosenValue = groupProvider.groupInfo['privacy'];
+        _descriptionController.text = groupProvider.groupInfo['description'];
+        _groupPhoto = groupProvider.groupInfo['groupImage'];
+      });
+    }
   }
 
   Widget _bodyUI(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     final GroupProvider groupProvider = Provider.of<GroupProvider>(context);
     final UserProvider userProvider = Provider.of<UserProvider>(context);
-    if (count == 0) _customInit(userProvider);
+    if (count == 0) _customInit(userProvider, groupProvider);
     return SingleChildScrollView(
       child: Container(
           width: size.width,
@@ -127,21 +144,31 @@ class _CreateGroupState extends State<CreateGroup> {
                   child: Stack(
                     children: [
                       Center(
-                        child: _image == null
-                            ? Center(
-                                child: Text(
-                                  'Upload a group photo',
-                                  style: TextStyle(fontSize: size.width * .05),
-                                ),
-                              )
-                            : Container(
+                        child: _groupPhoto != ''
+                            ? Container(
                                 height: size.width * .6,
                                 decoration: BoxDecoration(
                                   image: DecorationImage(
-                                      image: FileImage(_image!),
+                                      image: NetworkImage(_groupPhoto),
                                       fit: BoxFit.fill),
                                 ),
-                              ),
+                              )
+                            : _image == null
+                                ? Center(
+                                    child: Text(
+                                      'Upload a group photo',
+                                      style:
+                                          TextStyle(fontSize: size.width * .05),
+                                    ),
+                                  )
+                                : Container(
+                                    height: size.width * .6,
+                                    decoration: BoxDecoration(
+                                      image: DecorationImage(
+                                          image: FileImage(_image!),
+                                          fit: BoxFit.fill),
+                                    ),
+                                  ),
                       ),
                       Positioned(
                         bottom: 10,
@@ -302,7 +329,13 @@ class _CreateGroupState extends State<CreateGroup> {
                       child: ElevatedButton(
                         onPressed: () {
                           setState(() {
-                            String id = Uuid().v4();
+                            String id = '';
+                            if (groupId != '') {
+                              id = groupId;
+                            } else {
+                              id = Uuid().v4();
+                            }
+
                             if (_groupNameController.text.isEmpty) {
                               _groupNameError = 'Group name is required!';
                               return;
@@ -314,17 +347,30 @@ class _CreateGroupState extends State<CreateGroup> {
                                 builder: (context) {
                                   return ProgressDialog(
                                       message:
-                                          'Creating group... Please wait.');
+                                          'Saving group information... Please wait.');
                                 });
-                            createGroup(
-                                groupProvider,
-                                _groupNameController.text,
-                                _currentMobileNo!,
-                                _image,
-                                id,
-                                _choosenValue,
-                                _descriptionController.text,
-                                userProvider);
+                            if (groupId == '') {
+                              createGroup(
+                                  groupProvider,
+                                  _groupNameController.text,
+                                  _currentMobileNo!,
+                                  _image,
+                                  id,
+                                  _choosenValue,
+                                  _descriptionController.text,
+                                  userProvider);
+                            } else {
+                              updateGroup(
+                                  groupProvider,
+                                  _groupNameController.text,
+                                  _currentMobileNo!,
+                                  _image,
+                                  id,
+                                  _choosenValue,
+                                  _descriptionController.text,
+                                  userProvider,
+                                  _groupPhoto);
+                            }
                           });
                         },
                         style: ButtonStyle(
@@ -333,7 +379,7 @@ class _CreateGroupState extends State<CreateGroup> {
                           borderRadius: BorderRadius.circular(size.width * .02),
                         ))),
                         child: Text(
-                          'Create Group',
+                          'Save',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: size.width * .045,
@@ -421,5 +467,19 @@ class _CreateGroupState extends State<CreateGroup> {
       UserProvider userProvider) async {
     await groupProvider.createGroup(context, groupName, currentMobileNo, image,
         id, privacy, description, userProvider);
+  }
+
+  Future<void> updateGroup(
+      GroupProvider groupProvider,
+      String groupName,
+      String currentMobileNo,
+      File? image,
+      String id,
+      String privacy,
+      String description,
+      UserProvider userProvider,
+      String groupPhoto) async {
+    await groupProvider.updateGroup(context, groupName, currentMobileNo, image,
+        id, privacy, description, userProvider, groupPhoto);
   }
 }

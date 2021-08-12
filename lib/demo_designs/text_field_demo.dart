@@ -8,12 +8,14 @@ class TextFieldBuilder {
       TextEditingController _textEditingController,
       String? _errorText,
       bool obscureText,
+      FocusNode focusNode,
       Widget? _suffixIconData) {
     Size size = MediaQuery.of(context).size;
 
     return TextFormField(
       obscureText: obscureText,
       controller: _textEditingController,
+      focusNode: focusNode,
       decoration: InputDecoration(
         contentPadding:
             EdgeInsets.only(top: size.width * .04, bottom: size.width * .04),
@@ -23,7 +25,11 @@ class TextFieldBuilder {
           _prefixIconData,
           color: Colors.grey,
         ),
-        suffixIcon: _labelText == 'Password' || _labelText == 'Confirm Password'
+        suffixIcon: _labelText == 'Password' ||
+                _labelText == 'Confirm Password' ||
+                _labelText == 'Old password' ||
+                _labelText == 'New password' ||
+                _labelText == 'Confirm password'
             ? _suffixIconData
             : null,
         border: OutlineInputBorder(

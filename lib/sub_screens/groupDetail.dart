@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_lover/demo_designs/group_animal_post.dart';
 import 'package:pet_lover/demo_designs/group_menu_demo.dart';
+import 'package:pet_lover/home.dart';
 import 'package:pet_lover/model/group_menu_item.dart';
 import 'package:pet_lover/model/group_post.dart';
 import 'package:pet_lover/model/member.dart';
@@ -9,7 +10,9 @@ import 'package:pet_lover/provider/groupProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:pet_lover/sub_screens/AddPeopleInGroup.dart';
 import 'package:pet_lover/sub_screens/allGroupMembers.dart';
+import 'package:pet_lover/sub_screens/create_group.dart';
 import 'package:pet_lover/sub_screens/group_post_add.dart';
+import 'package:pet_lover/sub_screens/groups.dart';
 import 'package:provider/provider.dart';
 
 class GroupDetail extends StatefulWidget {
@@ -35,6 +38,9 @@ class _GroupDetailState extends State<GroupDetail> {
   List<Member> _members = [];
   int _totalMembers = 0;
   bool? _isMember;
+  String _admin = '';
+  String _currentUserMobileNo = '';
+  bool _loading = false;
 
   List<GroupPost> _groupPostLists = [];
   ScrollController _scrollController = ScrollController();
@@ -129,6 +135,7 @@ class _GroupDetailState extends State<GroupDetail> {
         _groupImage = _groupInfo['groupImage']!;
         _privacy = _groupInfo['privacy']!;
         _description = _groupInfo['description']!;
+        _admin = _groupInfo['admin']!;
       });
     });
   }
@@ -213,13 +220,17 @@ class _GroupDetailState extends State<GroupDetail> {
                             fontSize: size.width * .06),
                       ),
                       PopupMenuButton<MenuItem>(
-                          onSelected: (item) =>
-                              onSelectedMenuItem(context, item),
-                          itemBuilder: (context) => [
-                                ...MenuItems.groupMenuItems
+                          onSelected: (item) => onSelectedMenuItem(context,
+                              item, userProvider, groupProvider, _groupImage),
+                          itemBuilder: (context) {
+                            return _admin == userProvider.currentUserMobile
+                                ? MenuItems.adminGroupMenuItems
                                     .map(buildItem)
                                     .toList()
-                              ])
+                                : MenuItems.groupMenuItems
+                                    .map(buildItem)
+                                    .toList();
+                          })
                     ],
                   )),
               Padding(
@@ -278,15 +289,27 @@ class _GroupDetailState extends State<GroupDetail> {
                           height: size.width * .1,
                           padding: EdgeInsets.only(
                               left: size.width * .04, right: size.width * .04),
-                          child: ElevatedButton(
-                              onPressed: () {},
-                              child: Text(
-                                'Join $_groupName',
-                                style: TextStyle(
-                                  fontSize: size.width * .04,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )),
+                          child: _loading
+                              ? Center(child: CircularProgressIndicator())
+                              : ElevatedButton(
+                                  onPressed: () {
+                                    String date = DateTime.now()
+                                        .millisecondsSinceEpoch
+                                        .toString();
+                                    _joinGroup(
+                                        groupProvider,
+                                        groupId,
+                                        userProvider.currentUserMobile,
+                                        date,
+                                        userProvider);
+                                  },
+                                  child: Text(
+                                    'Join $_groupName',
+                                    style: TextStyle(
+                                      fontSize: size.width * .04,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )),
                         )
             ],
           ),
@@ -462,7 +485,13 @@ class _GroupDetailState extends State<GroupDetail> {
         ],
       ));
 
-  onSelectedMenuItem(BuildContext context, MenuItem item) {
+  onSelectedMenuItem(
+    BuildContext context,
+    MenuItem item,
+    UserProvider userProvider,
+    GroupProvider groupProvider,
+    String groupImage,
+  ) {
     switch (item) {
       case MenuItems.itemAddPeople:
         Navigator.push(
@@ -476,6 +505,49 @@ class _GroupDetailState extends State<GroupDetail> {
             MaterialPageRoute(
                 builder: (context) => AllGroupMembers(groupId: groupId)));
         break;
+      case MenuItems.itemLeaveGroup:
+        groupProvider.leaveGroup(userProvider, groupId);
+        Navigator.push(
+            context, MaterialPageRoute(builder: (context) => Groups()));
+        break;
+      case MenuItems.deleteGroup:
+        groupProvider.deleteGroup(context, groupId, groupImage, userProvider);
+        break;
+      case MenuItems.editGroup:
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => CreateGroup(groupId: groupId)));
+        break;
     }
+  }
+
+  _joinGroup(GroupProvider groupProvider, String groupId, String mobileNo,
+      String date, UserProvider userProvider) async {
+    setState(() {
+      _loading = true;
+    });
+    await groupProvider
+        .joinGroup(groupId, mobileNo, date, userProvider)
+        .then((value) {
+      setState(() {
+        _loading = false;
+      });
+      _showToast(context, 'You have been aded successfully.');
+      Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+              builder: (context) => GroupDetail(groupId: groupId)),
+          (route) => false);
+    });
+  }
+
+  _showToast(BuildContext context, String text) {
+    final scaffold = ScaffoldMessenger.of(context);
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Text(text),
+      ),
+    );
   }
 }

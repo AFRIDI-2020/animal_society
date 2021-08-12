@@ -22,14 +22,17 @@ class _UserFollowingState extends State<UserFollowing> {
 
   int _count = 0;
   List<Follower>? _followingList;
+  bool _loading = false;
 
   Future _customInit(UserProvider userProvider) async {
     setState(() {
       _count++;
+      _loading = true;
     });
 
     await userProvider.getAllFollowingPeople(userMobileNo).then((value) {
       setState(() {
+        _loading = false;
         _followingList = userProvider.followingList;
         print('length = ${_followingList!.length}');
       });
@@ -66,7 +69,7 @@ class _UserFollowingState extends State<UserFollowing> {
     Size size = MediaQuery.of(context).size;
     final UserProvider userProvider = Provider.of<UserProvider>(context);
     if (_count == 0) _customInit(userProvider);
-    return _followingList == null
+    return _loading
         ? Center(child: CircularProgressIndicator())
         : _followingList!.length == 0
             ? Padding(

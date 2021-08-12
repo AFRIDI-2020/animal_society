@@ -6,6 +6,7 @@ import 'package:pet_lover/provider/animalProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:pet_lover/sub_screens/addAnimal.dart';
 import 'package:pet_lover/sub_screens/commentSection.dart';
+import 'package:pet_lover/sub_screens/my_animals.dart';
 import 'package:provider/provider.dart';
 
 class MyAnimalsDemo extends StatefulWidget {
@@ -120,7 +121,7 @@ class _MyAnimalsDemoState extends State<MyAnimalsDemo> {
       Map userInfo = userProvider.currentUserMap;
       _currentMobileNo = userInfo['mobileNo'];
       _username = userInfo['username'];
-      _currentImage=userInfo['profileImageLink'];
+      _currentImage = userInfo['profileImageLink'];
     });
 
     _getCommentsNumber(animalProvider, petId);
@@ -129,9 +130,16 @@ class _MyAnimalsDemoState extends State<MyAnimalsDemo> {
     _isFollowerOrNot(animalProvider, _currentMobileNo!);
   }
 
-  _addAnimalOwnerInMyFollowings(AnimalProvider animalProvider,
-      String currentMobileNo, String mobileNo, String followingName,String followerName,String followingImage,String followerImage) async {
-    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,followerName,followingImage,followerImage);
+  _addAnimalOwnerInMyFollowings(
+      AnimalProvider animalProvider,
+      String currentMobileNo,
+      String mobileNo,
+      String followingName,
+      String followerName,
+      String followingImage,
+      String followerImage) async {
+    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,
+        followerName, followingImage, followerImage);
   }
 
   _isFollowerOrNot(
@@ -177,10 +185,12 @@ class _MyAnimalsDemoState extends State<MyAnimalsDemo> {
     );
   }
 
-  _deleteAnimal(AnimalProvider animalProvider) async {
+  Future _deleteAnimal(AnimalProvider animalProvider) async {
     await animalProvider.deleteAnimal(petId, petImage).then((value) {
-      setState(() {
-        _showDeleteToast(context);
+      animalProvider.getCurrentUserAnimals(_currentMobileNo!).then((value) {
+        setState(() {
+          _showDeleteToast(context);
+        });
       });
     });
   }
@@ -226,8 +236,8 @@ class _MyAnimalsDemoState extends State<MyAnimalsDemo> {
             ],
           ),
           trailing: PopupMenuButton<MyAnimalItemMenu>(
-              onSelected: (item) =>
-                  onSelectedMenuItem(context, item, animalProvider),
+              onSelected: (item) => onSelectedMenuItem(
+                  context, item, animalProvider, _currentMobileNo!),
               itemBuilder: (context) =>
                   [...MyAnimalsMenu.MyAnimalsMenuList.map(buildItem).toList()]),
         ),
@@ -264,7 +274,13 @@ class _MyAnimalsDemoState extends State<MyAnimalsDemo> {
                         petId, _currentMobileNo!, _username!);
                     _getFollowersNumber(animalProvider, petId);
                     _addAnimalOwnerInMyFollowings(
-                        animalProvider, _currentMobileNo!, mobile,widget.username, _username!,widget.profileImageLink,_currentImage!);
+                        animalProvider,
+                        _currentMobileNo!,
+                        mobile,
+                        widget.username,
+                        _username!,
+                        widget.profileImageLink,
+                        _currentImage!);
                   }
                   if (_isFollowed == false) {
                     _getFollowersNumber(animalProvider, petId);
@@ -506,7 +522,7 @@ class _MyAnimalsDemoState extends State<MyAnimalsDemo> {
           ));
 
   onSelectedMenuItem(BuildContext context, MyAnimalItemMenu item,
-      AnimalProvider animalProvider) {
+      AnimalProvider animalProvider, String _currentMobileNo) {
     switch (item) {
       case MyAnimalsMenu.editAnimalPost:
         Navigator.push(context,
@@ -514,6 +530,7 @@ class _MyAnimalsDemoState extends State<MyAnimalsDemo> {
         break;
       case MyAnimalsMenu.deleteAnimalPost:
         _deleteAnimal(animalProvider);
+
         break;
     }
   }

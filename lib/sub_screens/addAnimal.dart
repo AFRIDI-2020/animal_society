@@ -55,6 +55,13 @@ class _AddAnimalState extends State<AddAnimal> {
   List<String> _groupGender = ['Male', 'Female'];
   Animal _animal = Animal();
   int _count = 0;
+  String _petName = '';
+  String _petAge = '';
+  String _petColor = '';
+  String _petGender = '';
+  String _petGenus = '';
+  String _petPhoto = '';
+  String _petvideo = '';
 
   Future<String?> getCurrentMobileNo() async {
     final prefs = await SharedPreferences.getInstance();
@@ -76,6 +83,20 @@ class _AddAnimalState extends State<AddAnimal> {
     if (petId != '') {
       _animal = await animalProvider.getSpecificAnimal(petId);
       print('name = ${_animal.petName}, id = ${_animal.id}');
+      setState(() {
+        _petName = _animal.petName!;
+        _petAge = _animal.age!;
+        _petColor = _animal.color!;
+        _petGender = _animal.gender!;
+        _petGenus = _animal.genus!;
+        _petNameController.text = _petName;
+        _ageController.text = _petAge;
+        _colorController.text = _petColor;
+        _genusController.text = _petGenus;
+        _choosenValue = _petGender;
+        _petPhoto = _animal.photo!;
+        _petvideo = _animal.video!;
+      });
     }
   }
 
@@ -128,22 +149,26 @@ class _AddAnimalState extends State<AddAnimal> {
               decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300)),
               child: Center(
-                child: _image != null || fileMedia != null
-                    ? Container(
-                        width: size.width,
-                        height: size.width * .7,
-                        color: Colors.grey.shade300,
-                        alignment: Alignment.topCenter,
-                        child: _image != null
-                            ? Image.file(_image!, fit: BoxFit.fill)
-                            : VideoWidget(fileMedia!))
-                    : Text(
-                        'No image or video selected!',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: size.width * .05,
-                        ),
-                      ),
+                child: _petPhoto == '' && _petvideo == ''
+                    ? _image != null || fileMedia != null
+                        ? Container(
+                            width: size.width,
+                            height: size.width * .7,
+                            color: Colors.grey.shade300,
+                            alignment: Alignment.topCenter,
+                            child: _image != null
+                                ? Image.file(_image!, fit: BoxFit.fill)
+                                : VideoWidget(fileMedia!))
+                        : Text(
+                            'No image or video selected!',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: size.width * .05,
+                            ),
+                          )
+                    : _petvideo == ''
+                        ? Image.network(_petPhoto)
+                        : Image.network(_petvideo),
               ),
             ),
             SizedBox(
@@ -428,7 +453,12 @@ class _AddAnimalState extends State<AddAnimal> {
 
   _uploadData(AnimalProvider animalProvider) async {
     _currentMobileNo = await getCurrentMobileNo();
-    String id = _petNameController.text + _currentMobileNo!;
+    String id = '';
+    if (petId != '') {
+      id = petId;
+    } else {
+      id = _petNameController.text + _currentMobileNo!;
+    }
 
     _username =
         await DatabaseManager().getUserInfo(_currentMobileNo!, 'username');
@@ -481,9 +511,49 @@ class _AddAnimalState extends State<AddAnimal> {
           });
         });
       }
+    } else if ((_image == null && fileMedia == null) &&
+        (_petPhoto != '' || _petvideo != '')) {
+      _updateData(
+          uuid, _currentMobileNo, username, userProfileImage, animalProvider);
     } else {
       print('Please Select File');
     }
+  }
+
+  Future<void> _updateData(
+      String uuid,
+      String _currentMobileNo,
+      String username,
+      String userProfileImage,
+      AnimalProvider animalProvider) async {
+    String date = DateTime.now().millisecondsSinceEpoch.toString();
+    Map<String, String> map = {
+      'petName': _petNameController.text,
+      'username': username,
+      'userProfileImage': userProfileImage,
+      'color': _colorController.text,
+      'genus': _genusController.text,
+      'gender': _choosenValue,
+      'age': _ageController.text,
+      'mobile': _currentMobileNo,
+      'photo': _petPhoto,
+      'video': _petvideo,
+      'date': date,
+      'totalFollowings': '0',
+      'totalComments': '0',
+      'totalShares': '0',
+      'id': uuid
+    };
+    await DatabaseManager()
+        .UpdateAnimalsData(map, _currentMobileNo)
+        .then((value) async {
+      if (value) {
+        _emptyFildCreator();
+        await animalProvider
+            .getMyAnimalsNumber()
+            .then((value) => Navigator.pop(context));
+      } else {}
+    });
   }
 
   Future<void> _submitData(
@@ -524,6 +594,9 @@ class _AddAnimalState extends State<AddAnimal> {
 
   _emptyFildCreator() {
     _image = null;
+    _petPhoto = '';
+    _petvideo = '';
+    _choosenValue = 'Male';
     _petNameController.clear();
     _colorController.clear();
     _genusController.clear();
@@ -541,7 +614,7 @@ class _AddAnimalState extends State<AddAnimal> {
         context: context,
         builder: (context) {
           return Container(
-            height: size.width * .3,
+            height: size.height * .2,
             color: Color(0xff737373),
             child: Container(
               decoration: BoxDecoration(
@@ -590,6 +663,8 @@ class _AddAnimalState extends State<AddAnimal> {
       this.fileMedia = null;
 
       this._image = null;
+      _petPhoto = '';
+      _petvideo = '';
     });
     final _originalImage =
         await ImagePicker().getImage(source: ImageSource.gallery);
@@ -599,7 +674,7 @@ class _AddAnimalState extends State<AddAnimal> {
           sourcePath: _originalImage.path,
           aspectRatio: CropAspectRatio(ratioX: 1, ratioY: .7),
           androidUiSettings: AndroidUiSettings(
-            lockAspectRatio: false,
+            lockAspectRatio: true,
           )).then((value) {
         setState(() {
           _image = value;
@@ -615,6 +690,8 @@ class _AddAnimalState extends State<AddAnimal> {
       _image = null;
     });
     final file = await pickVideoFile();
+    _petPhoto = '';
+    _petvideo = '';
     controller = VideoPlayerController.file(file)
       ..addListener(() => setState(() {}))
       ..setLooping(true)
@@ -633,6 +710,8 @@ class _AddAnimalState extends State<AddAnimal> {
     });
     final _originalImage =
         await ImagePicker().getImage(source: ImageSource.camera);
+    _petPhoto = '';
+    _petvideo = '';
 
     if (_originalImage != null) {
       await ImageCropper.cropImage(
@@ -657,6 +736,8 @@ class _AddAnimalState extends State<AddAnimal> {
     final getMedia = ImagePicker().getVideo;
     final media = await getMedia(source: ImageSource.camera);
     final file = File(media!.path);
+    _petPhoto = '';
+    _petvideo = '';
     if (file == null) {
       return;
     } else {

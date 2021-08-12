@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_lover/home.dart';
 import 'package:pet_lover/login.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -6,15 +7,20 @@ import 'package:pet_lover/provider/animalProvider.dart';
 import 'package:pet_lover/provider/groupProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(MyApp());
+  final _prefs = await SharedPreferences.getInstance();
+  String? _currentMobileNo = _prefs.getString('mobileNo') ?? null;
+  runApp(MyApp(currentMobileNo: _currentMobileNo));
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
+  String? currentMobileNo;
+  MyApp({required this.currentMobileNo});
+
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
@@ -34,7 +40,7 @@ class MyApp extends StatelessWidget {
           backgroundColor: Colors.black,
           primarySwatch: Colors.deepOrange,
         ),
-        home: Login(),
+        home: currentMobileNo == null ? Login() : Home(),
       ),
     );
   }

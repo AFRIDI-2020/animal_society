@@ -143,7 +143,7 @@ class _AnimalPostState extends State<AnimalPost> {
       Map userInfo = userProvider.currentUserMap;
       _currentMobileNo = userInfo['mobileNo'];
       _username = userInfo['username'];
-      _currentImage=userInfo['profileImageLink'];
+      _currentImage = userInfo['profileImageLink'];
     });
 
     _getCommentsNumber(animalProvider, petId);
@@ -152,9 +152,16 @@ class _AnimalPostState extends State<AnimalPost> {
     _isFollowerOrNot(animalProvider, _currentMobileNo!);
   }
 
-  _addAnimalOwnerInMyFollowings(AnimalProvider animalProvider,
-      String currentMobileNo, String mobileNo, String followingName,String followerName,String followingImage,String followerImage) async {
-    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,followerName,followingImage,followerImage);
+  _addAnimalOwnerInMyFollowings(
+      AnimalProvider animalProvider,
+      String currentMobileNo,
+      String mobileNo,
+      String followingName,
+      String followerName,
+      String followingImage,
+      String followerImage) async {
+    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,
+        followerName, followingImage, followerImage);
   }
 
   _isFollowerOrNot(
@@ -208,7 +215,7 @@ class _AnimalPostState extends State<AnimalPost> {
 
     return Container(
       width: size.width,
-      child: Column(children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(
           height: size.width * .04,
         ),
@@ -247,64 +254,105 @@ class _AnimalPostState extends State<AnimalPost> {
           ),
         ),
         SizedBox(
+          height: size.width * .01,
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(size.width * .02, size.width * .01,
+              size.width * .02, size.width * .01),
+          child: Text(petId,
+              style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w600,
+                  fontSize: size.width * .038)),
+        ),
+        SizedBox(
           height: size.width * .02,
         ),
-        Container(
-            width: size.width,
-            height: size.width * .7,
-            decoration:
-                BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
-            child: petImage != ''
-                ? Center(
-                    child: Image.network(
-                    petImage,
-                    fit: BoxFit.fill,
-                  ))
-                : Center(
-                    child: controller!.value.isInitialized
-                        ? Stack(
-                            children: [
-                              AspectRatio(
-                                aspectRatio: controller!.value.aspectRatio,
-                                child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        isVisible = !isVisible;
-                                      });
+        GestureDetector(
+          onDoubleTap: () {
+            setState(() {
+              _isFollowed = !_isFollowed;
 
-                                      if (!controller!.value.isInitialized) {
-                                        return;
-                                      }
-                                      if (controller!.value.isPlaying) {
-                                        videoStatusAnimation = FadeAnimation(
-                                            child: const Icon(Icons.pause,
-                                                size: 100.0));
-                                        controller!.pause();
-                                      } else {
-                                        videoStatusAnimation = FadeAnimation(
-                                            child: const Icon(Icons.play_arrow,
-                                                size: 100.0));
-                                        controller!.play();
-                                      }
-                                    },
-                                    child: VideoPlayer(controller!)),
-                              ),
-                              Positioned.fill(
-                                  child: Stack(
-                                children: <Widget>[
-                                  Center(child: videoStatusAnimation),
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    child: buildIndicator(),
-                                  ),
-                                ],
-                              ))
-                            ],
-                          )
-                        : CircularProgressIndicator(),
-                  )),
+              if (_isFollowed == true) {
+                animalProvider.addFollowers(
+                    petId, _currentMobileNo!, _username!);
+                _getFollowersNumber(animalProvider, petId);
+                _addAnimalOwnerInMyFollowings(
+                    animalProvider,
+                    _currentMobileNo!,
+                    mobile,
+                    widget.username,
+                    _username!,
+                    widget.profileImageLink,
+                    _currentImage!);
+              }
+              if (_isFollowed == false) {
+                animalProvider.removeFollower(petId, _currentMobileNo!);
+                _getFollowersNumber(animalProvider, petId);
+                _removeFollowing(
+                    animalProvider, _currentMobileNo!, mobile, username);
+                animalProvider.deleteChat(mobile, _currentMobileNo!);
+              }
+            });
+          },
+          child: Container(
+              width: size.width,
+              height: size.width * .7,
+              decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300)),
+              child: petImage != ''
+                  ? Center(
+                      child: Image.network(
+                      petImage,
+                      fit: BoxFit.fill,
+                    ))
+                  : Center(
+                      child: controller!.value.isInitialized
+                          ? Stack(
+                              children: [
+                                AspectRatio(
+                                  aspectRatio: controller!.value.aspectRatio,
+                                  child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          isVisible = !isVisible;
+                                        });
+
+                                        if (!controller!.value.isInitialized) {
+                                          return;
+                                        }
+                                        if (controller!.value.isPlaying) {
+                                          videoStatusAnimation = FadeAnimation(
+                                              child: const Icon(Icons.pause,
+                                                  size: 100.0));
+                                          controller!.pause();
+                                        } else {
+                                          videoStatusAnimation = FadeAnimation(
+                                              child: const Icon(
+                                                  Icons.play_arrow,
+                                                  size: 100.0));
+                                          controller!.play();
+                                        }
+                                      },
+                                      child: VideoPlayer(controller!)),
+                                ),
+                                Positioned.fill(
+                                    child: Stack(
+                                  children: <Widget>[
+                                    Center(child: videoStatusAnimation),
+                                    Positioned(
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      child: buildIndicator(),
+                                    ),
+                                  ],
+                                ))
+                              ],
+                            )
+                          : CircularProgressIndicator(),
+                    )),
+        ),
         Row(
           children: [
             Padding(
@@ -325,7 +373,13 @@ class _AnimalPostState extends State<AnimalPost> {
                         petId, _currentMobileNo!, _username!);
                     _getFollowersNumber(animalProvider, petId);
                     _addAnimalOwnerInMyFollowings(
-                        animalProvider, _currentMobileNo!, mobile,widget.username, _username!,widget.profileImageLink,_currentImage!);
+                        animalProvider,
+                        _currentMobileNo!,
+                        mobile,
+                        widget.username,
+                        _username!,
+                        widget.profileImageLink,
+                        _currentImage!);
                   }
                   if (_isFollowed == false) {
                     animalProvider.removeFollower(petId, _currentMobileNo!);

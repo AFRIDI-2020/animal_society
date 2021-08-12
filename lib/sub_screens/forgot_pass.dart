@@ -17,6 +17,7 @@ class _Forgot_passState extends State<Forgot_pass> {
         child: SingleChildScrollView(
           child: Column(
             children: [
+              SizedBox(height: size.width * .2),
               Container(
                 width: size.width,
                 height: AppBar().preferredSize.height,

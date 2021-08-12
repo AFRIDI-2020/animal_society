@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pet_lover/custom_classes/DatabaseManager.dart';
 import 'package:pet_lover/login.dart';
 
 class Pass_update extends StatefulWidget {
@@ -68,6 +69,7 @@ class _Pass_updateState extends State<Pass_update> {
                     ),
                   ),
                   onPressed: () {
+                    DatabaseManager().clearSharedPref();
                     Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (context) => Login()),
