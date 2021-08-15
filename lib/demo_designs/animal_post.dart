@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pet_lover/fade_animation.dart';
@@ -8,7 +9,9 @@ import 'package:pet_lover/sub_screens/other_user_profile.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
+// ignore: must_be_immutable
 class AnimalPost extends StatefulWidget {
+  int index;
   String profileImageLink;
   String username;
   String mobile;
@@ -27,6 +30,7 @@ class AnimalPost extends StatefulWidget {
   String currentUserImage;
   AnimalPost(
       {Key? key,
+      required this.index,
       required this.profileImageLink,
       required this.username,
       required this.mobile,
@@ -47,6 +51,7 @@ class AnimalPost extends StatefulWidget {
 
   @override
   _AnimalPostState createState() => _AnimalPostState(
+      index,
       profileImageLink,
       username,
       mobile,
@@ -66,6 +71,7 @@ class AnimalPost extends StatefulWidget {
 }
 
 class _AnimalPostState extends State<AnimalPost> {
+  int index;
   String profileImageLink;
   String username;
   String mobile;
@@ -84,6 +90,7 @@ class _AnimalPostState extends State<AnimalPost> {
   String currentUserImage;
 
   _AnimalPostState(
+      this.index,
       this.profileImageLink,
       this.username,
       this.mobile,
@@ -107,14 +114,10 @@ class _AnimalPostState extends State<AnimalPost> {
   String? _currentImage;
   int count = 0;
   int _numberOfFollowers = 0;
-  int _numberOfComments = 0;
-  int _numberOfShares = 0;
-
   VideoPlayerController? controller;
-
   bool isVisible = true;
-
   Widget? videoStatusAnimation;
+
   @override
   void dispose() {
     controller!.dispose();
@@ -124,7 +127,6 @@ class _AnimalPostState extends State<AnimalPost> {
   @override
   void initState() {
     super.initState();
-
     controller = VideoPlayerController.network(petVideo)
       ..addListener(() => mounted ? setState(() {}) : true)
       ..setLooping(true)
@@ -138,7 +140,6 @@ class _AnimalPostState extends State<AnimalPost> {
         count++;
       });
     }
-
     await userProvider.getCurrentUserInfo().then((value) {
       Map userInfo = userProvider.currentUserMap;
       _currentMobileNo = userInfo['mobileNo'];
@@ -181,20 +182,14 @@ class _AnimalPostState extends State<AnimalPost> {
   }
 
   _getSharesNumber(AnimalProvider animalProvider, String _animalId) async {
-    await animalProvider.getNumberOfShares(_animalId).then((value) {
-      setState(() {
-        _numberOfShares = animalProvider.numberOfShares;
-      });
-      print('$petId has $numberOfShares shares');
-    });
+    await animalProvider.getNumberOfShares(_animalId);
   }
 
   _getCommentsNumber(AnimalProvider animalProvider, String _animalId) async {
     await animalProvider.getNumberOfComments(_animalId).then((value) {
       setState(() {
-        _numberOfComments = animalProvider.numberOfComments;
+        numberOfComments = animalProvider.numberOfComments.toString();
       });
-      print('$petId has $_numberOfComments comments');
     });
   }
 
@@ -207,8 +202,6 @@ class _AnimalPostState extends State<AnimalPost> {
   Widget build(BuildContext context) {
     final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
     final UserProvider userProvider = Provider.of<UserProvider>(context);
-    // _getCommentsNumber(animalProvider, petId);
-
     if (count == 0) _customInit(userProvider, animalProvider);
 
     Size size = MediaQuery.of(context).size;
@@ -408,7 +401,7 @@ class _AnimalPostState extends State<AnimalPost> {
             Padding(
               padding: EdgeInsets.only(left: size.width * .04),
               child: Text(
-                _numberOfComments.toString(),
+                animalProvider.animalList[index].totalComments,
                 style:
                     TextStyle(color: Colors.black, fontSize: size.width * .038),
               ),
@@ -421,6 +414,7 @@ class _AnimalPostState extends State<AnimalPost> {
                         builder: (context) => CommetPage(
                               id: petId,
                               animalOwnerMobileNo: mobile,
+                              index: index,
                             )));
               },
               child: Padding(
@@ -436,7 +430,7 @@ class _AnimalPostState extends State<AnimalPost> {
             Padding(
               padding: EdgeInsets.only(left: size.width * .04),
               child: Text(
-                _numberOfShares.toString(),
+                animalProvider.animalList[index].totalShares,
                 style:
                     TextStyle(color: Colors.black, fontSize: size.width * .038),
               ),
@@ -550,6 +544,7 @@ class _AnimalPostState extends State<AnimalPost> {
                     builder: (context) => CommetPage(
                           id: petId,
                           animalOwnerMobileNo: mobile,
+                          index: index,
                         )));
           },
         ),
@@ -569,6 +564,7 @@ class _AnimalPostState extends State<AnimalPost> {
         controller!,
         allowScrubbing: true,
       );
+
   showAlertDialog(
       BuildContext context, String petId, AnimalProvider animalProvider) {
     Widget cancelButton = TextButton(
@@ -581,11 +577,18 @@ class _AnimalPostState extends State<AnimalPost> {
       child: Text("Share"),
       onPressed: () async {
         await animalProvider.shareAnimal(petId).then((value) async {
-          setState(() {
-            _getSharesNumber(animalProvider, petId);
+          await FirebaseFirestore.instance
+              .collection('Animals')
+              .doc(petId)
+              .get()
+              .then((snapshot) {
+            animalProvider.animalList[index].totalShares =
+                snapshot['totalShares'];
+            print('totalShare : ${snapshot['totalShares']}');
+
+            Navigator.pop(context);
+            _showToast(context);
           });
-          Navigator.pop(context);
-          _showToast(context);
         });
       },
     );
@@ -610,7 +613,7 @@ class _AnimalPostState extends State<AnimalPost> {
     final scaffold = ScaffoldMessenger.of(context);
     scaffold.showSnackBar(
       SnackBar(
-        content: const Text('Animal shared successfully.'),
+        content: const Text('Animal shared successfully on your profile.'),
       ),
     );
   }

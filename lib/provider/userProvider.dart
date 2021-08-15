@@ -155,11 +155,11 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> resetPassword(String newPassword) async {
+  Future<void> resetPassword(String mobileNo, String newPassword) async {
     try {
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(_currentUserMobile)
+          .doc(mobileNo)
           .update({'password': newPassword});
     } catch (error) {
       print('Password changed failed, error: $error');

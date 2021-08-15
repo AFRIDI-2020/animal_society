@@ -43,7 +43,7 @@ class DatabaseManager {
           .doc(_currentMobileNo)
           .collection('my_pets')
           .doc(map['id'])
-          .set(map);
+          .set({'petId': map['id']});
 
       return true;
     } catch (err) {
@@ -97,7 +97,7 @@ class DatabaseManager {
       return exists;
     } catch (e) {
       print(
-          'Checking mobile number registered or not problem - ${e.toString()}');
+          'Checking mobile number registered or not failed - ${e.toString()}');
       return false;
     }
   }

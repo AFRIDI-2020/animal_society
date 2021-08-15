@@ -82,6 +82,7 @@ class _UserAnimalsState extends State<UserAnimals> {
               var format = new DateFormat("yMMMd").add_jm();
               finalDate = format.format(miliDate);
               return AnimalPost(
+                  index: index,
                   profileImageLink: _otherUserAnimals[index].userProfileImage!,
                   username: _otherUserAnimals[index].username!,
                   mobile: _otherUserAnimals[index].mobile!,

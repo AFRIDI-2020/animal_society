@@ -71,6 +71,12 @@ androidx/appcompat/graphics/drawable/DrawerArrowDrawable$ArrowDirection.class
 androidx/appcompat/view/menu/CascadingMenuPopup$HorizPosition.class
 androidx/appcompat/widget/LinearLayoutCompat$DividerMode.class
 androidx/appcompat/widget/LinearLayoutCompat$OrientationMode.class
+androidx/browser/browseractions/BrowserActionsIntent$BrowserActionsItemId.class
+androidx/browser/browseractions/BrowserActionsIntent$BrowserActionsUrlType.class
+androidx/browser/customtabs/CustomTabsService$Relation.class
+androidx/browser/customtabs/CustomTabsService$Result.class
+androidx/coordinatorlayout/widget/CoordinatorLayout$DefaultBehavior.class
+androidx/coordinatorlayout/widget/CoordinatorLayout$DispatchChangeEvent.class
 androidx/core/app/CoreComponentFactory$CompatWrapped.class
 androidx/core/app/CoreComponentFactory.class
 androidx/core/app/FrameMetricsAggregator$MetricType.class
@@ -125,6 +131,7 @@ androidx/multidex/MultiDexExtractor$ExtractedDex.class
 androidx/multidex/MultiDexExtractor.class
 androidx/multidex/ZipUtil$CentralDirectory.class
 androidx/multidex/ZipUtil.class
+androidx/swiperefreshlayout/widget/CircularProgressDrawable$ProgressDrawableSize.class
 androidx/transition/Slide$GravityFlag.class
 androidx/transition/Transition$MatchOrder.class
 androidx/transition/Visibility$Mode.class
@@ -326,6 +333,7 @@ com/google/android/exoplayer2/util/Util.class
 com/google/android/exoplayer2/video/VideoListener.class
 com/google/android/exoplayer2/video/VideoRendererEventListener.class
 com/google/android/exoplayer2/video/spherical/Projection$DrawMode.class
+com/google/android/gms/auth/api/phone/SmsCodeAutofillClient$PermissionState.class
 com/google/android/gms/common/GoogleSignatureVerifier.class
 com/google/android/gms/common/SignInButton$ButtonSize.class
 com/google/android/gms/common/SignInButton$ColorScheme.class
@@ -346,7 +354,7 @@ com/google/android/gms/common/util/DynamiteApi.class
 com/google/android/gms/common/util/RetainForClient.class
 com/google/android/gms/common/util/VisibleForTesting.class
 com/google/android/gms/common/zzc.class
-com/google/android/gms/common/zzm.class
+com/google/android/gms/common/zzl.class
 com/google/common/annotations/Beta.class
 com/google/common/annotations/GwtCompatible.class
 com/google/common/annotations/GwtIncompatible.class
@@ -379,6 +387,8 @@ com/google/errorprone/annotations/concurrent/LockMethod.class
 com/google/errorprone/annotations/concurrent/UnlockMethod.class
 com/google/firebase/annotations/DeferredApi.class
 com/google/firebase/annotations/PublicApi.class
+com/google/firebase/auth/ActionCodeResult$ActionDataKey.class
+com/google/firebase/auth/ActionCodeResult$Operation.class
 com/google/firebase/firestore/DocumentId.class
 com/google/firebase/firestore/Exclude.class
 com/google/firebase/firestore/IgnoreExtraProperties.class

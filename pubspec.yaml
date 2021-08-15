@@ -43,6 +43,8 @@ dependencies:
   file_picker: ^3.0.3
   uuid:
   provider: ^5.0.0
+  firebase_auth: ^3.0.1
+  
   
   
   

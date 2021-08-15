@@ -12,7 +12,12 @@ import 'package:uuid/uuid.dart';
 class CommetPage extends StatefulWidget {
   String id;
   String animalOwnerMobileNo;
-  CommetPage({Key? key, required this.id, required this.animalOwnerMobileNo})
+  int index;
+  CommetPage(
+      {Key? key,
+      required this.id,
+      required this.animalOwnerMobileNo,
+      required this.index})
       : super(key: key);
 
   @override
@@ -206,8 +211,19 @@ class _CommetPageState extends State<CommetPage> {
       String currentUserMobileNo,
       String date,
       String totalLikes) async {
-    await animalProvider.addComment(petId, commentId, comment,
-        animalOwnerMobileNo, currentUserMobileNo, date, totalLikes);
+    await animalProvider
+        .addComment(petId, commentId, comment, animalOwnerMobileNo,
+            currentUserMobileNo, date, totalLikes)
+        .then((value) async {
+      await FirebaseFirestore.instance
+          .collection('Animals')
+          .doc(petId)
+          .get()
+          .then((snapshot) {
+        animalProvider.animalList[widget.index].totalComments =
+            snapshot['totalComments'];
+      });
+    });
 
     _commentController.clear();
   }

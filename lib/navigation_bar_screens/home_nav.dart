@@ -128,6 +128,7 @@ class _HomeNavState extends State<HomeNav> {
                         finalDate = format.format(miliDate);
 
                         return AnimalPost(
+                            index: index,
                             profileImageLink:
                                 _animalLists[index].userProfileImage!,
                             username: _animalLists[index].username!,

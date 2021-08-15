@@ -26,9 +26,12 @@ class _RegisterState extends State<Register> {
   String? _addressErrorText;
   String? _passwordErrorText;
   String? _confirmPasswordErrorText;
-  bool _autofocus = true;
 
-  FocusNode focusNode = FocusNode();
+  FocusNode usernameFocusNode = FocusNode();
+  FocusNode mobileNoFocusNode = FocusNode();
+  FocusNode addressFocusNode = FocusNode();
+  FocusNode passwordFocusNode = FocusNode();
+  FocusNode confirmFocusNode = FocusNode();
 
   bool passwordObscureText = true;
   bool confirmPasswordObscureText = true;
@@ -149,7 +152,7 @@ class _RegisterState extends State<Register> {
                 _usernameController,
                 _usernameErrorText,
                 false,
-                focusNode,
+                usernameFocusNode,
                 null),
           ),
           Container(
@@ -163,7 +166,7 @@ class _RegisterState extends State<Register> {
                 _mobileNoController,
                 _mobileNoErrorText,
                 false,
-                focusNode,
+                mobileNoFocusNode,
                 null),
           ),
           Container(
@@ -177,7 +180,7 @@ class _RegisterState extends State<Register> {
                 _addressController,
                 _addressErrorText,
                 false,
-                focusNode,
+                addressFocusNode,
                 null),
           ),
           Container(
@@ -191,7 +194,7 @@ class _RegisterState extends State<Register> {
                 _passwordController,
                 _passwordErrorText,
                 passwordObscureText,
-                focusNode,
+                passwordFocusNode,
                 InkWell(
                     onTap: () {
                       setState(() {
@@ -216,7 +219,7 @@ class _RegisterState extends State<Register> {
                 _confirmPasswordController,
                 _confirmPasswordErrorText,
                 confirmPasswordObscureText,
-                focusNode,
+                confirmFocusNode,
                 InkWell(
                     onTap: () {
                       setState(() {

@@ -120,7 +120,7 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
       Map userInfo = userProvider.currentUserMap;
       _currentMobileNo = userInfo['mobileNo'];
       _username = userInfo['username'];
-      _currentImage=userInfo['profileImageLink'];
+      _currentImage = userInfo['profileImageLink'];
     });
 
     _getCommentsNumber(animalProvider, petId);
@@ -129,9 +129,16 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
     _isFollowerOrNot(animalProvider, _currentMobileNo!);
   }
 
-  _addAnimalOwnerInMyFollowings(AnimalProvider animalProvider,
-      String currentMobileNo, String mobileNo, String followingName,String followerName,String followingImage,String followerImage) async {
-    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,followerName,followingImage,followerImage);
+  _addAnimalOwnerInMyFollowings(
+      AnimalProvider animalProvider,
+      String currentMobileNo,
+      String mobileNo,
+      String followingName,
+      String followerName,
+      String followingImage,
+      String followerImage) async {
+    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,
+        followerName, followingImage, followerImage);
   }
 
   _isFollowerOrNot(
@@ -264,7 +271,13 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
                         petId, _currentMobileNo!, _username!);
                     _getFollowersNumber(animalProvider, petId);
                     _addAnimalOwnerInMyFollowings(
-                        animalProvider, _currentMobileNo!, mobile,widget.username, _username!,widget.profileImageLink,_currentImage!);
+                        animalProvider,
+                        _currentMobileNo!,
+                        mobile,
+                        widget.username,
+                        _username!,
+                        widget.profileImageLink,
+                        _currentImage!);
                   }
                   if (_isFollowed == false) {
                     _getFollowersNumber(animalProvider, petId);
@@ -296,13 +309,13 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
             ),
             InkWell(
               onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => CommetPage(
-                              id: petId,
-                              animalOwnerMobileNo: mobile,
-                            )));
+                // Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //         builder: (context) => CommetPage(
+                //               id: petId,
+                //               animalOwnerMobileNo: mobile,
+                //             )));
               },
               child: Padding(
                 padding: EdgeInsets.fromLTRB(size.width * .02, size.width * .02,
@@ -425,13 +438,13 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
             radius: size.width * .04,
           ),
           onTap: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => CommetPage(
-                          id: petId,
-                          animalOwnerMobileNo: mobile,
-                        )));
+            // Navigator.push(
+            //     context,
+            //     MaterialPageRoute(
+            //         builder: (context) => CommetPage(
+            //               id: petId,
+            //               animalOwnerMobileNo: mobile,
+            //             )));
           },
         ),
         Container(

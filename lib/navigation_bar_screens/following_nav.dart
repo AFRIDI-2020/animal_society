@@ -61,6 +61,7 @@ class _FollowingNavState extends State<FollowingNav> {
               finalDate = format.format(miliDate);
 
               return AnimalPost(
+                  index: index,
                   profileImageLink: _favouriteList[index].userProfileImage!,
                   username: _favouriteList[index].username!,
                   mobile: _favouriteList[index].mobile!,

@@ -114,6 +114,7 @@ class _SearchPageState extends State<SearchPage> {
                         finalDate = format.format(miliDate);
 
                         return AnimalPost(
+                            index: index,
                             profileImageLink:
                                 _searchedList[index].userProfileImage!,
                             username: _searchedList[index].username!,

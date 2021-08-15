@@ -11,6 +11,7 @@ class AnimalProvider extends ChangeNotifier {
   bool _isFollower = false;
   int _numberOfFollowers = 0;
   int _numberOfComments = 0;
+  int _numberOfCommentsOnList = 0;
   int _numberOfShares = 0;
   List<Comment> _commentList = [];
   int documentLimit = 4;
@@ -202,6 +203,43 @@ class AnimalProvider extends ChangeNotifier {
     return isExists;
   }
 
+  // for comments...
+  Future<void> addComment(
+      String petId,
+      String commentId,
+      String comment,
+      String animalOwnerMobileNo,
+      String currentUserMobileNo,
+      String date,
+      String totalLikes) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('Animals')
+          .doc(petId)
+          .collection('comments')
+          .doc(commentId)
+          .set({
+        'commentId': commentId,
+        'comment': comment,
+        'date': date,
+        'animalOwnerMobileNo': animalOwnerMobileNo,
+        'commenter': currentUserMobileNo,
+        'totalLikes': totalLikes
+      });
+
+      await getNumberOfComments(petId).then((value) async {
+        await FirebaseFirestore.instance
+            .collection('Animals')
+            .doc(petId)
+            .update({
+          'totalComments': _numberOfComments.toString(),
+        });
+      });
+    } catch (error) {
+      print('Add comment failed: $error');
+    }
+  }
+
   Future<void> getNumberOfComments(String _animalId) async {
     try {
       await FirebaseFirestore.instance
@@ -227,6 +265,7 @@ class AnimalProvider extends ChangeNotifier {
           .get()
           .then((snapshot) {
         _numberOfShares = snapshot.docs.length;
+        notifyListeners();
       });
     } catch (error) {
       print('Number of shares cannot be showed - $error');
@@ -428,33 +467,6 @@ class AnimalProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addComment(
-      String petId,
-      String commentId,
-      String comment,
-      String animalOwnerMobileNo,
-      String currentUserMobileNo,
-      String date,
-      String totalLikes) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('Animals')
-          .doc(petId)
-          .collection('comments')
-          .doc(commentId)
-          .set({
-        'commentId': commentId,
-        'comment': comment,
-        'date': date,
-        'animalOwnerMobileNo': animalOwnerMobileNo,
-        'commenter': currentUserMobileNo,
-        'totalLikes': totalLikes
-      });
-    } catch (error) {
-      print('Add comment failed: $error');
-    }
-  }
-
   Future<void> getCurrentUserAnimals(String _currentMobileNo) async {
     print('getCurrentUserAnimals() running');
     try {
@@ -611,6 +623,17 @@ class AnimalProvider extends ChangeNotifier {
         await sharingPersonsRef.set({
           'date': date,
         });
+
+        await getNumberOfShares(petId).then((value) async {
+          await FirebaseFirestore.instance
+              .collection('Animals')
+              .doc(petId)
+              .update({
+            'totalShares': _numberOfShares.toString(),
+          });
+        });
+
+        notifyListeners();
       }
     });
   }

@@ -378,13 +378,13 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
             ),
             InkWell(
               onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => CommetPage(
-                              id: petId,
-                              animalOwnerMobileNo: mobile,
-                            )));
+                // Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //         builder: (context) => CommetPage(
+                //               id: petId,
+                //               animalOwnerMobileNo: mobile,
+                //             )));
               },
               child: Padding(
                 padding: EdgeInsets.fromLTRB(size.width * .02, size.width * .02,
@@ -507,13 +507,14 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
             radius: size.width * .04,
           ),
           onTap: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => CommetPage(
-                          id: petId,
-                          animalOwnerMobileNo: mobile,
-                        )));
+            // Navigator.push(
+            //     context,
+            //     MaterialPageRoute(
+            //         builder: (context) => CommetPage(
+            //               id: petId,
+            //               animalOwnerMobileNo: mobile,
+            //               index: ,
+            //             )));
           },
         ),
         Container(

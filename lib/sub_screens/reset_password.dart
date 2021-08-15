@@ -48,7 +48,9 @@ class _ResetPasswordState extends State<ResetPassword> {
       _loading = true;
     });
     if (_password == _oldPasswordController.text) {
-      await userProvider.resetPassword(newPassword).then((value) {
+      await userProvider
+          .resetPassword(userProvider.currentUserMobile, newPassword)
+          .then((value) {
         setState(() {
           _loading = false;
         });
