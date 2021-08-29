@@ -234,9 +234,18 @@ class _Forgot_passState extends State<Forgot_pass> {
                     ),
                   ),
           ),
-          Text('OTP will expired after 2 minutes: $_start',
-              style: TextStyle(
-                  fontSize: size.width * .033, color: Colors.grey[600]))
+          Visibility(
+            visible: _mobileNoVisibility,
+            child: Text('You will be sent an OTP to verify',
+                style: TextStyle(
+                    fontSize: size.width * .033, color: Colors.grey[600])),
+          ),
+          Visibility(
+            visible: _otpVisibility,
+            child: Text('OTP will expired after 2 minutes: $_start sec',
+                style: TextStyle(
+                    fontSize: size.width * .033, color: Colors.grey[600])),
+          )
         ],
       ),
     );
@@ -309,6 +318,7 @@ class _Forgot_passState extends State<Forgot_pass> {
         },
         codeSent: (verificationId, resendingToken) async {
           setState(() {
+            startTimer();
             _sendingOtpLoading = false;
             _mobileNoVisibility = false;
             _otpVisibility = true;

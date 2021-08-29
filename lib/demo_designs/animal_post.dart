@@ -5,6 +5,8 @@ import 'package:pet_lover/fade_animation.dart';
 import 'package:pet_lover/provider/animalProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:pet_lover/sub_screens/commentSection.dart';
+import 'package:pet_lover/sub_screens/groupCommentSection.dart';
+import 'package:pet_lover/sub_screens/mySharedAnimals.dart';
 import 'package:pet_lover/sub_screens/other_user_profile.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
@@ -12,6 +14,8 @@ import 'package:video_player/video_player.dart';
 // ignore: must_be_immutable
 class AnimalPost extends StatefulWidget {
   int index;
+  String groupId;
+  String status;
   String profileImageLink;
   String username;
   String mobile;
@@ -31,6 +35,8 @@ class AnimalPost extends StatefulWidget {
   AnimalPost(
       {Key? key,
       required this.index,
+      required this.groupId,
+      required this.status,
       required this.profileImageLink,
       required this.username,
       required this.mobile,
@@ -52,6 +58,8 @@ class AnimalPost extends StatefulWidget {
   @override
   _AnimalPostState createState() => _AnimalPostState(
       index,
+      groupId,
+      status,
       profileImageLink,
       username,
       mobile,
@@ -72,6 +80,8 @@ class AnimalPost extends StatefulWidget {
 
 class _AnimalPostState extends State<AnimalPost> {
   int index;
+  String groupId;
+  String status;
   String profileImageLink;
   String username;
   String mobile;
@@ -91,6 +101,8 @@ class _AnimalPostState extends State<AnimalPost> {
 
   _AnimalPostState(
       this.index,
+      this.groupId,
+      this.status,
       this.profileImageLink,
       this.username,
       this.mobile,
@@ -117,6 +129,7 @@ class _AnimalPostState extends State<AnimalPost> {
   VideoPlayerController? controller;
   bool isVisible = true;
   Widget? videoStatusAnimation;
+  String _groupName = '';
 
   @override
   void dispose() {
@@ -147,6 +160,18 @@ class _AnimalPostState extends State<AnimalPost> {
       _currentImage = userInfo['profileImageLink'];
     });
 
+    if (groupId != '') {
+      await FirebaseFirestore.instance
+          .collection('Groups')
+          .doc(groupId)
+          .get()
+          .then((value) {
+        setState(() {
+          _groupName = value['groupName'];
+        });
+      });
+    }
+
     _getCommentsNumber(animalProvider, petId);
     _getFollowersNumber(animalProvider, petId);
     _getSharesNumber(animalProvider, petId);
@@ -160,9 +185,10 @@ class _AnimalPostState extends State<AnimalPost> {
       String followingName,
       String followerName,
       String followingImage,
-      String followerImage) async {
+      String followerImage,
+      UserProvider userProvider) async {
     await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,
-        followerName, followingImage, followerImage);
+        followerName, followingImage, followerImage, userProvider);
   }
 
   _isFollowerOrNot(
@@ -198,6 +224,80 @@ class _AnimalPostState extends State<AnimalPost> {
     await animalProvider.removeMyFollowings(currentMobileNo, mobile);
   }
 
+  Widget buildIndicator() => VideoProgressIndicator(
+        controller!,
+        allowScrubbing: true,
+      );
+
+  showAlertDialog(
+      BuildContext context, String petId, AnimalProvider animalProvider) {
+    Widget cancelButton = TextButton(
+      child: Text("Cancel"),
+      onPressed: () {
+        Navigator.pop(context);
+      },
+    );
+    Widget continueButton = TextButton(
+      child: Text("Share"),
+      onPressed: () async {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_currentMobileNo)
+            .collection('shared_animals')
+            .doc(petId)
+            .get()
+            .then((snapshot) async {
+          if (snapshot.exists) {
+            _showToast(context, 'Already shared.');
+            Navigator.pop(context);
+          } else {
+            await animalProvider.shareAnimal(petId);
+            await FirebaseFirestore.instance
+                .collection('Animals')
+                .doc(petId)
+                .get()
+                .then((snapshot) {
+              setState(() {
+                animalProvider.animalList[index].totalShares =
+                    snapshot['totalShares'];
+              });
+              print('totalShare : ${snapshot['totalShares']}');
+              _showToast(
+                  context, 'Animal shared successfully on your profile.');
+              Navigator.pop(context);
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => MySharedAnimals()));
+            });
+          }
+        });
+      },
+    );
+
+    AlertDialog alert = AlertDialog(
+      title: Text("Share animal"),
+      content: Text("Do you want to share $petName?"),
+      actions: [
+        cancelButton,
+        continueButton,
+      ],
+    );
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
+  void _showToast(BuildContext context, String text) {
+    final scaffold = ScaffoldMessenger.of(context);
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Text(text),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
@@ -214,11 +314,11 @@ class _AnimalPostState extends State<AnimalPost> {
         ),
         ListTile(
           onTap: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => OtherUserProfile(
-                        userMobileNo: mobile, username: username)));
+            // Navigator.push(
+            //     context,
+            //     MaterialPageRoute(
+            //         builder: (context) => OtherUserProfile(
+            //             userMobileNo: mobile, username: username)));
           },
           leading: CircleAvatar(
             backgroundImage: profileImageLink == ''
@@ -229,13 +329,35 @@ class _AnimalPostState extends State<AnimalPost> {
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                username,
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: size.width * .035,
-                    fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  Text(
+                    username,
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontSize: size.width * .04,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  Visibility(
+                    visible: groupId == '' ? false : true,
+                    child: Text(
+                      ' posted on ',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: size.width * .04,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    groupId == '' ? '' : _groupName,
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontSize: size.width * .04,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
+              SizedBox(height: size.width * .01),
               Text(
                 date,
                 style: TextStyle(
@@ -252,7 +374,7 @@ class _AnimalPostState extends State<AnimalPost> {
         Padding(
           padding: EdgeInsets.fromLTRB(size.width * .02, size.width * .01,
               size.width * .02, size.width * .01),
-          child: Text(petId,
+          child: Text(status == '' ? petId : status,
               style: TextStyle(
                   color: Colors.grey.shade700,
                   fontWeight: FontWeight.w600,
@@ -277,74 +399,83 @@ class _AnimalPostState extends State<AnimalPost> {
                     widget.username,
                     _username!,
                     widget.profileImageLink,
-                    _currentImage!);
+                    _currentImage!,
+                    userProvider);
               }
               if (_isFollowed == false) {
                 animalProvider.removeFollower(petId, _currentMobileNo!);
                 _getFollowersNumber(animalProvider, petId);
                 _removeFollowing(
                     animalProvider, _currentMobileNo!, mobile, username);
-                animalProvider.deleteChat(mobile, _currentMobileNo!);
+                animalProvider.deleteChat(
+                    mobile, _currentMobileNo!, userProvider, 0);
               }
             });
           },
-          child: Container(
-              width: size.width,
-              height: size.width * .7,
-              decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300)),
-              child: petImage != ''
-                  ? Center(
-                      child: Image.network(
-                      petImage,
-                      fit: BoxFit.fill,
-                    ))
-                  : Center(
-                      child: controller!.value.isInitialized
-                          ? Stack(
-                              children: [
-                                AspectRatio(
-                                  aspectRatio: controller!.value.aspectRatio,
-                                  child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          isVisible = !isVisible;
-                                        });
+          child: Visibility(
+            visible: petImage == '' && petVideo == '' ? false : true,
+            child: Container(
+                width: size.width,
+                height: size.width * .7,
+                decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300)),
+                child: petImage != ''
+                    ? Center(
+                        child: Image.network(
+                        petImage,
+                        fit: BoxFit.fill,
+                      ))
+                    : Center(
+                        child: controller!.value.isInitialized
+                            ? Stack(
+                                children: [
+                                  AspectRatio(
+                                    aspectRatio: controller!.value.aspectRatio,
+                                    child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            isVisible = !isVisible;
+                                          });
 
-                                        if (!controller!.value.isInitialized) {
-                                          return;
-                                        }
-                                        if (controller!.value.isPlaying) {
-                                          videoStatusAnimation = FadeAnimation(
-                                              child: const Icon(Icons.pause,
-                                                  size: 100.0));
-                                          controller!.pause();
-                                        } else {
-                                          videoStatusAnimation = FadeAnimation(
-                                              child: const Icon(
-                                                  Icons.play_arrow,
-                                                  size: 100.0));
-                                          controller!.play();
-                                        }
-                                      },
-                                      child: VideoPlayer(controller!)),
-                                ),
-                                Positioned.fill(
-                                    child: Stack(
-                                  children: <Widget>[
-                                    Center(child: videoStatusAnimation),
-                                    Positioned(
-                                      bottom: 0,
-                                      left: 0,
-                                      right: 0,
-                                      child: buildIndicator(),
-                                    ),
-                                  ],
-                                ))
-                              ],
-                            )
-                          : CircularProgressIndicator(),
-                    )),
+                                          if (!controller!
+                                              .value.isInitialized) {
+                                            return;
+                                          }
+                                          if (controller!.value.isPlaying) {
+                                            videoStatusAnimation =
+                                                FadeAnimation(
+                                                    child: const Icon(
+                                                        Icons.pause,
+                                                        size: 100.0));
+                                            controller!.pause();
+                                          } else {
+                                            videoStatusAnimation =
+                                                FadeAnimation(
+                                                    child: const Icon(
+                                                        Icons.play_arrow,
+                                                        size: 100.0));
+                                            controller!.play();
+                                          }
+                                        },
+                                        child: VideoPlayer(controller!)),
+                                  ),
+                                  Positioned.fill(
+                                      child: Stack(
+                                    children: <Widget>[
+                                      Center(child: videoStatusAnimation),
+                                      Positioned(
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        child: buildIndicator(),
+                                      ),
+                                    ],
+                                  ))
+                                ],
+                              )
+                            : CircularProgressIndicator(),
+                      )),
+          ),
         ),
         Row(
           children: [
@@ -372,14 +503,16 @@ class _AnimalPostState extends State<AnimalPost> {
                         widget.username,
                         _username!,
                         widget.profileImageLink,
-                        _currentImage!);
+                        _currentImage!,
+                        userProvider);
                   }
                   if (_isFollowed == false) {
                     animalProvider.removeFollower(petId, _currentMobileNo!);
                     _getFollowersNumber(animalProvider, petId);
                     _removeFollowing(
                         animalProvider, _currentMobileNo!, mobile, username);
-                    animalProvider.deleteChat(mobile, _currentMobileNo!);
+                    animalProvider.deleteChat(
+                        mobile, _currentMobileNo!, userProvider, 0);
                   }
                 });
               },
@@ -408,14 +541,23 @@ class _AnimalPostState extends State<AnimalPost> {
             ),
             InkWell(
               onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => CommetPage(
-                              id: petId,
-                              animalOwnerMobileNo: mobile,
-                              index: index,
-                            )));
+                // groupId == ''
+                // ? Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //         builder: (context) => CommetPage(
+                //               id: petId,
+                //               animalOwnerMobileNo: mobile,
+                //               index: index,
+                //             )))
+                // : Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //         builder: (context) => GroupCommentSection(
+                //               id: petId,
+                //               postOwnerMobileNo: mobile,
+                //               index: index,
+                //             )));
               },
               child: Padding(
                 padding: EdgeInsets.fromLTRB(size.width * .02, size.width * .02,
@@ -456,16 +598,19 @@ class _AnimalPostState extends State<AnimalPost> {
             padding: EdgeInsets.fromLTRB(size.width * .02, size.width * .01,
                 size.width * .02, size.width * .01),
             child: Column(children: [
-              Row(
-                children: [
-                  Text('Pet name: ',
-                      style: TextStyle(
-                          color: Colors.black, fontSize: size.width * .038)),
-                  Text(petName,
-                      style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontSize: size.width * .038)),
-                ],
+              Visibility(
+                visible: petName == '' ? false : true,
+                child: Row(
+                  children: [
+                    Text('Pet name: ',
+                        style: TextStyle(
+                            color: Colors.black, fontSize: size.width * .038)),
+                    Text(petName,
+                        style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: size.width * .038)),
+                  ],
+                ),
               ),
               Visibility(
                 visible: petColor == '' ? false : true,
@@ -538,14 +683,23 @@ class _AnimalPostState extends State<AnimalPost> {
             radius: size.width * .04,
           ),
           onTap: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => CommetPage(
-                          id: petId,
-                          animalOwnerMobileNo: mobile,
-                          index: index,
-                        )));
+            // groupId == ''
+            //     ? Navigator.push(
+            //         context,
+            //         MaterialPageRoute(
+            //             builder: (context) => CommetPage(
+            //                   id: petId,
+            //                   animalOwnerMobileNo: mobile,
+            //                   index: index,
+            //                 )))
+            //     : Navigator.push(
+            //         context,
+            //         MaterialPageRoute(
+            //             builder: (context) => GroupCommentSection(
+            //                   id: petId,
+            //                   postOwnerMobileNo: mobile,
+            //                   index: index,
+            //                 )));
           },
         ),
         Container(
@@ -557,64 +711,6 @@ class _AnimalPostState extends State<AnimalPost> {
           ),
         ),
       ]),
-    );
-  }
-
-  Widget buildIndicator() => VideoProgressIndicator(
-        controller!,
-        allowScrubbing: true,
-      );
-
-  showAlertDialog(
-      BuildContext context, String petId, AnimalProvider animalProvider) {
-    Widget cancelButton = TextButton(
-      child: Text("Cancel"),
-      onPressed: () {
-        Navigator.pop(context);
-      },
-    );
-    Widget continueButton = TextButton(
-      child: Text("Share"),
-      onPressed: () async {
-        await animalProvider.shareAnimal(petId).then((value) async {
-          await FirebaseFirestore.instance
-              .collection('Animals')
-              .doc(petId)
-              .get()
-              .then((snapshot) {
-            animalProvider.animalList[index].totalShares =
-                snapshot['totalShares'];
-            print('totalShare : ${snapshot['totalShares']}');
-
-            Navigator.pop(context);
-            _showToast(context);
-          });
-        });
-      },
-    );
-
-    AlertDialog alert = AlertDialog(
-      title: Text("Share animal"),
-      content: Text("Do you want to share $petName?"),
-      actions: [
-        cancelButton,
-        continueButton,
-      ],
-    );
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return alert;
-      },
-    );
-  }
-
-  void _showToast(BuildContext context) {
-    final scaffold = ScaffoldMessenger.of(context);
-    scaffold.showSnackBar(
-      SnackBar(
-        content: const Text('Animal shared successfully on your profile.'),
-      ),
     );
   }
 }

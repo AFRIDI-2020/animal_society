@@ -27,23 +27,25 @@ class DatabaseManager {
       'profileImageLink': profileImageLink,
       'password': password,
       'about': about
-    });
+    }).then((value) async {});
   }
 
   Future<bool> addAnimalsData(
-      Map<String, String> map, String _currentMobileNo) async {
+    Map<String, String> animalMap,
+    String _currentMobileNo,
+  ) async {
     try {
       await FirebaseFirestore.instance
           .collection("Animals")
-          .doc(map['id'])
-          .set(map);
+          .doc(animalMap['id'])
+          .set(animalMap);
 
       await FirebaseFirestore.instance
           .collection('users')
           .doc(_currentMobileNo)
           .collection('my_pets')
-          .doc(map['id'])
-          .set({'petId': map['id']});
+          .doc(animalMap['id'])
+          .set(animalMap);
 
       return true;
     } catch (err) {
@@ -191,5 +193,55 @@ class DatabaseManager {
     String _currentUserMobile = _currentMobileNo!;
     print('Current Mobile no given by userProvider is $_currentMobileNo');
     return _currentUserMobile;
+  }
+
+  Future<void> updateProfileImage(String profileImage) async {
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+    String currentMobileNo = await getCurrentMobileNo();
+    try {
+      await FirebaseFirestore.instance
+          .collection('allPosts')
+          .where('postOwnerId', isEqualTo: currentMobileNo)
+          .get()
+          .then((snapshot) {
+        snapshot.docChanges.forEach((element) {
+          batch.update(
+              FirebaseFirestore.instance
+                  .collection('allPosts')
+                  .doc(element.doc.id),
+              {
+                'postOwnerImage': profileImage,
+              });
+        });
+        return batch.commit();
+      });
+    } catch (error) {
+      print('profile image batch update error - $error');
+    }
+  }
+
+  Future<void> updateUsername(String username) async {
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+    String currentMobileNo = await getCurrentMobileNo();
+    try {
+      await FirebaseFirestore.instance
+          .collection('allPosts')
+          .where('postOwnerId', isEqualTo: currentMobileNo)
+          .get()
+          .then((snapshot) {
+        snapshot.docChanges.forEach((element) {
+          batch.update(
+              FirebaseFirestore.instance
+                  .collection('allPosts')
+                  .doc(element.doc.id),
+              {
+                'postOwnerName': username,
+              });
+        });
+        return batch.commit();
+      });
+    } catch (error) {
+      print('profile image batch update error - $error');
+    }
   }
 }

@@ -1,4 +1,6 @@
 class Animal {
+  String? groupId;
+  String? status;
   String? userProfileImage;
   String? username;
   String? mobile;
@@ -16,7 +18,9 @@ class Animal {
   String? date;
 
   Animal(
-      {this.userProfileImage,
+      {required this.status,
+      required this.groupId,
+      this.userProfileImage,
       this.username,
       this.mobile,
       this.id,

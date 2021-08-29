@@ -3,8 +3,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pet_lover/custom_classes/DatabaseManager.dart';
 import 'package:pet_lover/custom_classes/TextFieldValidation.dart';
 import 'package:pet_lover/custom_classes/progress_dialog.dart';
+import 'package:pet_lover/custom_classes/toast.dart';
 import 'package:pet_lover/login.dart';
 import 'package:pet_lover/sub_screens/successful_registration.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'demo_designs/text_field_demo.dart';
 
 class Register extends StatefulWidget {
@@ -41,7 +43,6 @@ class _RegisterState extends State<Register> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.deepOrange,
         title: Text(
@@ -61,10 +62,8 @@ class _RegisterState extends State<Register> {
 
   Widget _bodyUI(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-
     return Container(
         width: size.width,
-        height: size.height,
         child: Column(children: [
           Container(
             width: size.width,
@@ -350,14 +349,24 @@ class _RegisterState extends State<Register> {
         await DatabaseManager()
             .addUser(_usernameController.text, _mobileNoController.text,
                 _addressController.text, date, '', _passwordController.text, '')
-            .then((value) => {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => RegistrationSuccessful()))
-                });
+            .then((value) async {
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setString('mobileNo', _mobileNoController.text);
+
+          Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => RegistrationSuccessful()),
+              (route) => false);
+        });
       } else {
+        Toast().showToast(context, 'Already registered!');
         print('Number already registered!');
+        _usernameController.clear();
+        _mobileNoController.clear();
+        _addressController.clear();
+        _passwordController.clear();
+        _confirmPasswordController.clear();
+        FocusScope.of(context).unfocus();
         Navigator.pop(context);
       }
     } catch (error) {

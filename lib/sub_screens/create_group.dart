@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:pet_lover/custom_classes/progress_dialog.dart';
 import 'package:pet_lover/provider/groupProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
+import 'package:pet_lover/sub_screens/groups.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -111,10 +112,12 @@ class _CreateGroupState extends State<CreateGroup> {
 
     if (groupId != '') {
       await groupProvider.getGroupInfo(groupId).then((value) {
-        _groupNameController.text = groupProvider.groupInfo['groupName'];
-        _choosenValue = groupProvider.groupInfo['privacy'];
-        _descriptionController.text = groupProvider.groupInfo['description'];
-        _groupPhoto = groupProvider.groupInfo['groupImage'];
+        setState(() {
+          _groupNameController.text = groupProvider.groupInfo['groupName'];
+          _choosenValue = groupProvider.groupInfo['privacy'];
+          _descriptionController.text = groupProvider.groupInfo['description'];
+          _groupPhoto = groupProvider.groupInfo['groupImage'];
+        });
       });
     }
   }

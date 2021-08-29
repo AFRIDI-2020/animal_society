@@ -1,16 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_lover/model/follower.dart';
+import 'package:pet_lover/sub_screens/myFollowers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserProvider extends ChangeNotifier {
   Map<String, String> _currentUserMap = {};
   int _mFollowing = 0;
+  int _myFollowers = 0;
   Map<String, String> _specificUserMap = {};
   bool _isUserExists = false;
   String _currentUserMobile = '';
   List<Follower> _followerList = [];
   List<Follower> _followingList = [];
+  int _otherUserFollower = 0;
+  int _otherUserFollowing = 0;
 
   get currentUserMap => _currentUserMap;
   get followerList => _followerList;
@@ -19,6 +23,10 @@ class UserProvider extends ChangeNotifier {
   get specificUserMap => _specificUserMap;
   get isUserExists => _isUserExists;
   get currentUserMobile => _currentUserMobile;
+  get myFollowers => _myFollowers;
+  get otherUserFollowing => _otherUserFollowing;
+  get otherUserFollower => _otherUserFollower;
+
   Future<void> getCurrentUserInfo() async {
     String? _currentMobileNo = await getCurrentMobileNo();
     await FirebaseFirestore.instance
@@ -53,6 +61,7 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> getMyFollowingsNumber() async {
+    _mFollowing = 0;
     CollectionReference _myFollowingRef = FirebaseFirestore.instance
         .collection('users')
         .doc(_currentUserMobile)
@@ -61,13 +70,61 @@ class UserProvider extends ChangeNotifier {
     _myFollowingRef.get().then((snapshot) {
       if (snapshot.docs.isNotEmpty) {
         _mFollowing = snapshot.docs.length;
+        notifyListeners();
       }
       print('$_currentUserMobile is following $_mFollowing persons');
     });
   }
 
+  Future<void> getOtherUserFollowingsNumber(String userId) async {
+    _otherUserFollowing = 0;
+    CollectionReference _myFollowingRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('myFollowings');
+
+    _myFollowingRef.get().then((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        _otherUserFollowing = snapshot.docs.length;
+        notifyListeners();
+      }
+      print('$_currentUserMobile is following $_mFollowing persons');
+    });
+  }
+
+  Future<void> getMyFollowersNumber() async {
+    _myFollowers = 0;
+    CollectionReference _myFollowerRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUserMobile)
+        .collection('followers');
+    _myFollowerRef.get().then((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        _myFollowers = snapshot.docs.length;
+        notifyListeners();
+      }
+      print('$_currentUserMobile total followers $_myFollowers persons');
+    });
+  }
+
+  Future<void> getOtherUserFollowersNumber(String userId) async {
+    _otherUserFollower = 0;
+    CollectionReference _myFollowerRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('followers');
+    _myFollowerRef.get().then((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        _otherUserFollower = snapshot.docs.length;
+        notifyListeners();
+      }
+      print('$userId total followers $_otherUserFollower persons');
+    });
+  }
+
   Future<void> getSpecificUserInfo(String mobileNo) async {
     try {
+      _specificUserMap = {};
       await FirebaseFirestore.instance
           .collection('users')
           .doc(mobileNo)
@@ -105,15 +162,14 @@ class UserProvider extends ChangeNotifier {
           .get()
           .then((value) {
         value.docChanges.forEach((element) async {
-          print('getting follower info of ${element.doc['follower']}');
+          String id = element.doc['id'];
 
-          await getSpecificUserInfo(element.doc['follower']).then((value) {
+          await getSpecificUserInfo(id).then((value) {
             Follower follower = Follower(
                 mobileNo: _specificUserMap['mobileNo']!,
                 name: _specificUserMap['username']!,
                 photo: _specificUserMap['profileImageLink']!);
-            print(
-                'follower found: name- ${follower.name}, mobile- ${follower.mobileNo} ');
+
             _followerList.add(follower);
             notifyListeners();
           });
@@ -137,14 +193,13 @@ class UserProvider extends ChangeNotifier {
           .get()
           .then((snapshot) {
         snapshot.docChanges.forEach((element) async {
-          print('getting follower info of ${element.doc['mobile']}');
-          await getSpecificUserInfo(element.doc['mobile']).then((value) {
+          String id = element.doc['id'];
+          await getSpecificUserInfo(id).then((value) {
             Follower following = Follower(
                 mobileNo: _specificUserMap['mobileNo']!,
                 name: _specificUserMap['username']!,
                 photo: _specificUserMap['profileImageLink']!);
-            print(
-                'follower found: name- ${following.name}, mobile- ${following.mobileNo} ');
+
             _followingList.add(following);
             notifyListeners();
           });

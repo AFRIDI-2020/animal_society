@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "G:\\Android Projects\\Animal_Lover\\build\\app\\intermediates\\incremental\\mergeDebugResources\\merged.dir\\values-zh\\values-zh.xml",
+            "outputFile": "E:\\E_flutter_projects\\Animal_Lover\\build\\app\\intermediates\\incremental\\mergeDebugResources\\merged.dir\\values-zh\\values-zh.xml",
             "map": [
                 {
                     "source": "C:\\Users\\CDS\\.gradle\\caches\\transforms-3\\a4894bcc49492b42e5b2a27068e0ea5a\\transformed\\jetified-ucrop-2.2.7\\res\\values-zh\\values-zh.xml",

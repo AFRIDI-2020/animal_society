@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
-import 'package:pet_lover/demo_designs/my_animals_demo.dart';
-import 'package:pet_lover/model/animal.dart';
-import 'package:pet_lover/provider/animalProvider.dart';
+import 'package:pet_lover/demo_designs/myAnimalsShow.dart';
+import 'package:pet_lover/model/post.dart';
+import 'package:pet_lover/provider/postProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:provider/provider.dart';
 
@@ -13,47 +11,45 @@ class MyAnimals extends StatefulWidget {
 }
 
 class _MyAnimalsState extends State<MyAnimals> {
-  List<String> menuItems = ['Edit', 'Delete'];
+  bool _loading = false;
   int _count = 0;
 
-  String? finalDate;
-  Map<String, String> _currentUserInfoMap = {};
-  String? _currentMobileNo;
-  bool _loading = false;
-
-  _customInit(AnimalProvider animalProvider, UserProvider userProvider) async {
+  Future<void> _customInit(
+      PostProvider postProvider, UserProvider userProvider) async {
     setState(() {
       _count++;
       _loading = true;
     });
 
-    await userProvider.getCurrentUserInfo().then((value) {
-      _currentUserInfoMap = userProvider.currentUserMap;
-      _currentMobileNo = _currentUserInfoMap['mobileNo'];
+    await postProvider.getAllMyAnimals(userProvider).then((value) {
+      print('your total animals = ${postProvider.myAnimals.length}');
     });
 
-    await animalProvider.getCurrentUserAnimals(_currentMobileNo!).then((value) {
-      setState(() {
-        _loading = false;
-      });
+    setState(() {
+      _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
     final UserProvider userProvider = Provider.of<UserProvider>(context);
-    if (_count == 0) _customInit(animalProvider, userProvider);
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
+    if (_count == 0) _customInit(postProvider, userProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Your Animals',
-          style: TextStyle(
-            color: Colors.black,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0.0,
+        title: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text(
+            "Your Animals",
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: size.width * .05,
+            ),
           ),
         ),
-        backgroundColor: Colors.white,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
@@ -63,118 +59,32 @@ class _MyAnimalsState extends State<MyAnimals> {
             Navigator.pop(context);
           },
         ),
-        elevation: 0.0,
       ),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: _loading
-            ? Center(child: CircularProgressIndicator())
-            : animalProvider.currentUserAnimals.isEmpty
-                ? Center(child: Text('You have no animals.'))
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: ClampingScrollPhysics(),
-                    itemCount: animalProvider.currentUserAnimals.length,
-                    itemBuilder: (context, index) {
-                      DateTime miliDate =
-                          new DateTime.fromMillisecondsSinceEpoch(int.parse(
-                              animalProvider.currentUserAnimals[index].date!));
-                      var format = new DateFormat("yMMMd").add_jm();
-                      finalDate = format.format(miliDate);
-
-                      return MyAnimalsDemo(
-                          profileImageLink: animalProvider
-                              .currentUserAnimals[index].userProfileImage!,
-                          username: animalProvider
-                              .currentUserAnimals[index].username!,
-                          mobile:
-                              animalProvider.currentUserAnimals[index].mobile!,
-                          date: finalDate!,
-                          numberOfLoveReacts: animalProvider
-                              .currentUserAnimals[index].totalFollowings!,
-                          numberOfComments: animalProvider
-                              .currentUserAnimals[index].totalComments!,
-                          numberOfShares: animalProvider
-                              .currentUserAnimals[index].totalShares!,
-                          petId: animalProvider.currentUserAnimals[index].id!,
-                          petName:
-                              animalProvider.currentUserAnimals[index].petName!,
-                          petColor:
-                              animalProvider.currentUserAnimals[index].color!,
-                          petGenus:
-                              animalProvider.currentUserAnimals[index].genus!,
-                          petGender:
-                              animalProvider.currentUserAnimals[index].gender!,
-                          petAge: animalProvider.currentUserAnimals[index].age!,
-                          petImage:
-                              animalProvider.currentUserAnimals[index].photo!,
-                          petVideo:
-                              animalProvider.currentUserAnimals[index].video!,
-                          currentUserImage:
-                              _currentUserInfoMap['profileImageLink']!);
-                    },
-                  ),
-      ),
-    );
-  }
-
-  Future<void> _onRefresh() async {}
-
-  Widget _bodyUI(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-    final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
-    final UserProvider userProvider = Provider.of<UserProvider>(context);
-
-    if (_count == 0) _customInit(animalProvider, userProvider);
-    return RefreshIndicator(
-      onRefresh: _onRefresh,
-      child: _loading
-          ? Center(child: CircularProgressIndicator())
-          : animalProvider.currentUserAnimals.isEmpty
-              ? Center(child: Text('You have no animals.'))
+      body: Container(
+          width: size.width,
+          child: _loading
+              ? Center(
+                  child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: size.width * .08),
+                    Text(
+                      'Loading animals. Please wait...',
+                      style: TextStyle(
+                        fontSize: size.width * .04,
+                      ),
+                    ),
+                  ],
+                ))
               : ListView.builder(
-                  shrinkWrap: true,
                   physics: ClampingScrollPhysics(),
-                  itemCount: animalProvider.currentUserAnimals.length,
+                  shrinkWrap: true,
+                  itemCount: postProvider.myAnimals.length,
                   itemBuilder: (context, index) {
-                    DateTime miliDate = new DateTime.fromMillisecondsSinceEpoch(
-                        int.parse(
-                            animalProvider.currentUserAnimals[index].date!));
-                    var format = new DateFormat("yMMMd").add_jm();
-                    finalDate = format.format(miliDate);
-
-                    return MyAnimalsDemo(
-                        profileImageLink: animalProvider
-                            .currentUserAnimals[index].userProfileImage!,
-                        username:
-                            animalProvider.currentUserAnimals[index].username!,
-                        mobile:
-                            animalProvider.currentUserAnimals[index].mobile!,
-                        date: finalDate!,
-                        numberOfLoveReacts: animalProvider
-                            .currentUserAnimals[index].totalFollowings!,
-                        numberOfComments: animalProvider
-                            .currentUserAnimals[index].totalComments!,
-                        numberOfShares: animalProvider
-                            .currentUserAnimals[index].totalShares!,
-                        petId: animalProvider.currentUserAnimals[index].id!,
-                        petName:
-                            animalProvider.currentUserAnimals[index].petName!,
-                        petColor:
-                            animalProvider.currentUserAnimals[index].color!,
-                        petGenus:
-                            animalProvider.currentUserAnimals[index].genus!,
-                        petGender:
-                            animalProvider.currentUserAnimals[index].gender!,
-                        petAge: animalProvider.currentUserAnimals[index].age!,
-                        petImage:
-                            animalProvider.currentUserAnimals[index].photo!,
-                        petVideo:
-                            animalProvider.currentUserAnimals[index].video!,
-                        currentUserImage:
-                            _currentUserInfoMap['profileImageLink']!);
-                  },
-                ),
+                    return MyAnimalsShow(
+                        index: index, post: postProvider.myAnimals[index]);
+                  })),
     );
   }
 }

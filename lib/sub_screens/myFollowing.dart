@@ -14,22 +14,24 @@ class MyFollowing extends StatefulWidget {
 
 class _MyFollowingState extends State<MyFollowing> {
   String mobileNo = '';
-
-  int _count = 0;
-  List<Follower>? _followingList;
   bool _loading = false;
 
-  Future _customInit(UserProvider userProvider) async {
+  Future getMyFollowingPeople(UserProvider userProvider) async {
     setState(() {
-      _count++;
+      _loading = true;
     });
-    mobileNo = await DatabaseManager().getCurrentMobileNo();
-    await userProvider.getAllFollowingPeople(mobileNo).then((value) {
-      setState(() {
-        _followingList = userProvider.followingList;
-        print('length = ${_followingList!.length}');
-      });
+    await userProvider.getAllFollowingPeople(userProvider.currentUserMobile);
+    setState(() {
+      _loading = false;
     });
+  }
+
+  @override
+  void initState() {
+    UserProvider userProvider =
+        Provider.of<UserProvider>(context, listen: false);
+    getMyFollowingPeople(userProvider);
+    super.initState();
   }
 
   @override
@@ -54,58 +56,60 @@ class _MyFollowingState extends State<MyFollowing> {
         ),
         elevation: 0.0,
       ),
+      body: _loading
+          ? Center(child: CircularProgressIndicator())
+          : _bodyUI(context),
     );
   }
 
   Widget _bodyUI(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     final UserProvider userProvider = Provider.of<UserProvider>(context);
-    if (_count == 0) _customInit(userProvider);
-    return _loading
-        ? Center(child: CircularProgressIndicator())
-        : _followingList!.length == 0
-            ? Padding(
-                padding: EdgeInsets.all(size.width * .04),
-                child: Text(
-                  'You are follwoing nobody.',
-                  style: TextStyle(fontSize: size.width * .04),
+
+    return userProvider.followingList.isEmpty
+        ? Padding(
+            padding: EdgeInsets.all(size.width * .04),
+            child: Text(
+              'You are follwoing nobody.',
+              style: TextStyle(fontSize: size.width * .04),
+            ),
+          )
+        : ListView.builder(
+            physics: ClampingScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: userProvider.followingList.length,
+            itemBuilder: (context, index) {
+              return Container(
+                padding: EdgeInsets.only(
+                  left: size.width * .02,
+                  right: size.width * .02,
                 ),
-              )
-            : ListView.builder(
-                physics: ClampingScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: _followingList!.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    padding: EdgeInsets.only(
-                      left: size.width * .02,
-                      right: size.width * .02,
-                    ),
-                    child: Card(
-                      child: ListTile(
-                        onTap: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => OtherUserProfile(
-                                      userMobileNo:
-                                          _followingList![index].mobileNo,
-                                      username: _followingList![index].name)));
-                        },
-                        leading: CircleAvatar(
-                          backgroundImage: _followingList![index].photo == ''
-                              ? AssetImage('assets/profile_image_demo.jpg')
-                              : NetworkImage(_followingList![index].photo)
+                child: Card(
+                  child: ListTile(
+                    onTap: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => OtherUserProfile(
+                                  userId: userProvider
+                                      .followingList[index].mobileNo)));
+                    },
+                    leading: CircleAvatar(
+                      backgroundImage:
+                          userProvider.followingList[index].photo == ''
+                              ? AssetImage('assets/profile_image_demo.png')
+                              : NetworkImage(
+                                      userProvider.followingList[index].photo)
                                   as ImageProvider,
-                        ),
-                        title: Text(
-                          _followingList![index].name,
-                          style: TextStyle(
-                              color: Colors.black, fontWeight: FontWeight.w600),
-                        ),
-                      ),
                     ),
-                  );
-                });
+                    title: Text(
+                      userProvider.followingList[index].name,
+                      style: TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              );
+            });
   }
 }

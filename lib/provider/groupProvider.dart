@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:pet_lover/model/animal.dart';
 import 'package:pet_lover/model/group.dart';
 import 'package:pet_lover/model/group_post.dart';
 import 'package:pet_lover/model/member.dart';
 import 'package:pet_lover/model/myGroup.dart';
+import 'package:pet_lover/provider/postProvider.dart';
 
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:pet_lover/sub_screens/groups.dart';
@@ -23,6 +25,9 @@ class GroupProvider extends ChangeNotifier {
   List<Group> _allPublicGroups = [];
   List<GroupPost> _groupPostList = [];
   DocumentSnapshot? _startAfter;
+  List<GroupPost> _allGroupPosts = [];
+  int _numberOfComments = 0;
+  int _totalGroupMembers = 0;
 
   get groupPostList => _groupPostList;
   get myGroups => _myGroups;
@@ -34,6 +39,9 @@ class GroupProvider extends ChangeNotifier {
   get searchedGroups => _searchedGroups;
   get allGroups => _allGroups;
   get allPublicGroups => _allPublicGroups;
+  get allGroupPosts => _allGroupPosts;
+  get numberOfComments => _numberOfComments;
+  get totalGroupMembers => _totalGroupMembers;
 
   Future<List<MyGroup>> getMyGroups(String currentMobileNo) async {
     try {
@@ -246,7 +254,7 @@ class GroupProvider extends ChangeNotifier {
       'admin': currentMobileNo,
       'id': uuid,
       'privacy': privacy,
-      'description': description
+      'description': description,
     }).then((value) {
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => Groups()));
@@ -275,7 +283,7 @@ class GroupProvider extends ChangeNotifier {
   }
 
   Future<void> addMember(String groupId, String mobileNo, String date,
-      UserProvider userProvider) async {
+      UserProvider userProvider, PostProvider postProvider) async {
     try {
       Map<String, String> userInfo = {};
       DocumentReference groupMembersRef = FirebaseFirestore.instance
@@ -317,7 +325,8 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> isGroupMemberOrNot(String groupId, String mobileNo) async {
+  Future<bool> isGroupMemberOrNot(String groupId, String mobileNo) async {
+    bool member = false;
     try {
       DocumentReference memberQuery = FirebaseFirestore.instance
           .collection('Groups')
@@ -328,12 +337,16 @@ class GroupProvider extends ChangeNotifier {
       await memberQuery.get().then((snapshot) async {
         if (snapshot.exists) {
           _isGroupMember = true;
+          member = true;
           return;
         }
         _isGroupMember = false;
+        member = false;
       });
+      return member;
     } catch (error) {
       print('Determining group member or not failed - $error');
+      return member;
     }
   }
 
@@ -354,7 +367,10 @@ class GroupProvider extends ChangeNotifier {
               memberRole: element.doc['memberRole'],
               username: element.doc['username']);
           _members.add(member);
+          notifyListeners();
         });
+        _totalGroupMembers = _members.length;
+        notifyListeners();
       });
     } catch (error) {
       print('Group members list cannot be fetched - $error');
@@ -676,21 +692,178 @@ class GroupProvider extends ChangeNotifier {
         await storageRef.delete();
       }
       await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userProvider.currentUserMobile)
-          .collection('myGroups')
-          .doc(groupId)
-          .delete();
-      await FirebaseFirestore.instance
           .collection('Groups')
           .doc(groupId)
-          .delete()
-          .then((value) {
-        Navigator.push(
-            context, MaterialPageRoute(builder: (context) => Groups()));
+          .collection('members')
+          .get()
+          .then((snapshot) async {
+        snapshot.docChanges.forEach((element) async {
+          String userId = element.doc['mobileNo'];
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .collection('myGroups')
+              .doc(groupId)
+              .delete()
+              .then((value) async {
+            await FirebaseFirestore.instance
+                .collection('Groups')
+                .doc(groupId)
+                .collection('members')
+                .doc(userId)
+                .delete();
+          });
+        });
+        await FirebaseFirestore.instance
+            .collection('Groups')
+            .doc(groupId)
+            .delete()
+            .then((value) {
+          Navigator.push(
+              context, MaterialPageRoute(builder: (context) => Groups()));
+        });
       });
     } catch (error) {
       print('Deleting group failed - $error');
     }
+  }
+
+  Future<String> totalComments(String groupId) async {
+    try {
+      String numberOfComments = '';
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(groupId)
+          .get()
+          .then((value) {
+        numberOfComments = value['totalComments'];
+      });
+      return numberOfComments;
+    } catch (error) {
+      print('Counting number of comments in group post error - $error');
+      return '';
+    }
+  }
+
+  Future<void> getAllGroupPosts(int limit) async {
+    try {
+      _allGroupPosts.clear();
+      await FirebaseFirestore.instance
+          .collection('groupPosts')
+          .limit(limit)
+          .get()
+          .then((snapshot) {
+        snapshot.docChanges.forEach((element) {
+          GroupPost groupPost = GroupPost(
+              userProfileImage: element.doc['userProfileImage'],
+              username: element.doc['username'],
+              mobile: element.doc['mobile'],
+              id: element.doc['id'],
+              photo: element.doc['photo'],
+              video: element.doc['video'],
+              petName: element.doc['petName'],
+              color: element.doc['color'],
+              age: element.doc['age'],
+              gender: element.doc['gender'],
+              genus: element.doc['genus'],
+              totalComments: element.doc['totalComments'],
+              totalFollowings: element.doc['totalFollowings'],
+              totalShares: element.doc['totalShares'],
+              date: element.doc['date'],
+              groupId: element.doc['groupId'],
+              status: element.doc['status']);
+          print('geting groupData = ${groupPost.status}');
+          _allGroupPosts.add(groupPost);
+
+          notifyListeners();
+        });
+      });
+    } catch (error) {
+      print('Getting all group posts error - $error');
+    }
+  }
+
+  Future<void> addGroupPostComment(
+    String postId,
+    String commentId,
+    String comment,
+    String postOwnerMobileNo,
+    String currentUserMobileNo,
+    String date,
+    String totalLikes,
+  ) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('groupPosts')
+          .doc(postId)
+          .collection('comments')
+          .doc(commentId)
+          .set({
+        'commentId': commentId,
+        'comment': comment,
+        'date': date,
+        'animalOwnerMobileNo': postOwnerMobileNo,
+        'commenter': currentUserMobileNo,
+        'totalLikes': totalLikes,
+        'petId': postId
+      });
+
+      await getNumberOfComments(postId).then((value) async {
+        await FirebaseFirestore.instance
+            .collection('groupPosts')
+            .doc(postId)
+            .update({
+          'totalComments': _numberOfComments.toString(),
+        });
+      });
+    } catch (error) {
+      print('Add comment failed: $error');
+    }
+  }
+
+  Future<void> getNumberOfComments(String postId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('groupPosts')
+          .doc(postId)
+          .collection('comments')
+          .get()
+          .then((snapshot) {
+        _numberOfComments = snapshot.docs.length;
+        notifyListeners();
+      });
+    } catch (error) {
+      print('Number of comments in group post cannot be showed - $error');
+    }
+  }
+
+  Future<void> deleteComment(String postId, String commentId) async {
+    await FirebaseFirestore.instance
+        .collection('groupPosts')
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId)
+        .delete();
+
+    await getNumberOfComments(postId).then((value) async {
+      await FirebaseFirestore.instance
+          .collection('groupPosts')
+          .doc(postId)
+          .update({
+        'totalComments': _numberOfComments.toString(),
+      });
+    });
+  }
+
+  Future<void> editComment(
+      String petId, String commentId, String newComment) async {
+    await FirebaseFirestore.instance
+        .collection('groupPosts')
+        .doc(petId)
+        .collection('comments')
+        .doc(commentId)
+        .update({
+      'comment': newComment,
+    });
   }
 }

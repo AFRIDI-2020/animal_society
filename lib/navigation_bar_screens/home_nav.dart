@@ -1,11 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:pet_lover/demo_designs/animal_post.dart';
-import 'package:pet_lover/model/animal.dart';
-import 'package:pet_lover/provider/animalProvider.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:pet_lover/demo_designs/showPost.dart';
+import 'package:pet_lover/provider/postProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
+import 'package:pet_lover/sub_screens/addAnimal.dart';
+import 'package:pet_lover/sub_screens/create_post.dart';
 import 'package:provider/provider.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 class HomeNav extends StatefulWidget {
   @override
@@ -14,150 +16,254 @@ class HomeNav extends StatefulWidget {
 
 class _HomeNavState extends State<HomeNav> {
   int _count = 0;
-  List<Animal> _list = [];
-  List<Animal> _animalLists = [];
-  ScrollController _scrollController = ScrollController();
-  bool _isLoading = false;
-  bool _moreAnimalsLoading = false;
+  RefreshController _refreshController =
+      RefreshController(initialRefresh: false);
+  bool _loading = false;
+  String _currentUserImage = '';
 
-  String? finalDate;
-  Map<String, String> _currentUserInfoMap = {};
-
-  _customInit(AnimalProvider animalProvider, UserProvider userProvider) async {
+  Future _customInit(
+      PostProvider postProvider, UserProvider userProvider) async {
     setState(() {
-      _isLoading = true;
       _count++;
     });
 
-    await userProvider.getCurrentUserInfo().then((value) {
+    userProvider.getCurrentUserInfo().then((value) {
       setState(() {
-        _currentUserInfoMap = userProvider.currentUserMap;
-        _isLoading = false;
+        _currentUserImage = userProvider.currentUserMap['profileImageLink'];
       });
     });
 
-    if (animalProvider.animalList.isEmpty) {
+    if (postProvider.allPosts.isEmpty) {
+      _loading = true;
+      await postProvider.getAllPosts();
       setState(() {
-        _isLoading = true;
-      });
-
-      await animalProvider.getAnimals(2).then((value) {
-        setState(() {
-          _list = animalProvider.animalList;
-          _animalLists = _list;
-          print('The animal list first time length = ${_animalLists.length}');
-          _isLoading = false;
-        });
-      });
-    } else {
-      setState(() {
-        _list = animalProvider.animalList;
-        _animalLists = _list;
+        _loading = false;
       });
     }
-
-    _scrollController.addListener(() {
-      if (_scrollController.offset >=
-          _scrollController.position.maxScrollExtent) {
-        print('scrolling max and getting more animals');
-
-        _getMoreAnimals(animalProvider);
-        print('The animal list length = ${_animalLists.length}');
-      }
-    });
   }
 
-  _getMoreAnimals(AnimalProvider animalProvider) async {
-    setState(() {
-      _moreAnimalsLoading = true;
-    });
-    await animalProvider.getMoreAnimals(2).then((value) {
-      setState(() {
-        _list = animalProvider.animalList;
-        _animalLists = _list;
-        setState(() {
-          _moreAnimalsLoading = false;
-          print('get more animals $_moreAnimalsLoading');
-        });
-      });
-    });
+  void _onRefresh(PostProvider postProvider, UserProvider userProvider) async {
+    await Future.delayed(Duration(milliseconds: 1000));
+    await userProvider.getCurrentUserInfo();
+    await postProvider.getAllPosts();
+    _refreshController.refreshCompleted();
   }
 
-  Future _onRefresh(
-      AnimalProvider animalProvider, UserProvider userProvider) async {
-    await animalProvider.getAnimals(2).then((value) {
-      setState(() {
-        _list = animalProvider.animalList;
-        _animalLists = _list;
-      });
-    });
-  }
+  void _onLoading(PostProvider postProvider) async {
+    await Future.delayed(Duration(milliseconds: 1000));
 
-  @override
-  void initState() {
-    super.initState();
-    AnimalProvider animalProvider =
-        Provider.of<AnimalProvider>(context, listen: false);
-    animalProvider.getAllChatUser();
+    if (postProvider.hasNext) {
+      await postProvider.getMorePosts();
+    }
+    _refreshController.loadComplete();
   }
 
   @override
   Widget build(BuildContext context) {
-    final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
-    final UserProvider userProvider = Provider.of<UserProvider>(context);
     Size size = MediaQuery.of(context).size;
-    if (_count == 0) _customInit(animalProvider, userProvider);
-    return RefreshIndicator(
-      onRefresh: () => _onRefresh(animalProvider, userProvider),
-      child: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : _animalLists.isEmpty
-              ? Center(child: Text('Nothing posted yet!'))
-              : ListView(
-                  controller: _scrollController,
-                  children: [
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: ClampingScrollPhysics(),
-                      itemCount: _animalLists.length,
-                      itemBuilder: (context, index) {
-                        DateTime miliDate =
-                            new DateTime.fromMillisecondsSinceEpoch(
-                                int.parse(_animalLists[index].date!));
-                        var format = new DateFormat("yMMMd").add_jm();
-                        finalDate = format.format(miliDate);
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
+    final UserProvider userProvider = Provider.of<UserProvider>(context);
+    if (_count == 0) _customInit(postProvider, userProvider);
 
-                        return AnimalPost(
-                            index: index,
-                            profileImageLink:
-                                _animalLists[index].userProfileImage!,
-                            username: _animalLists[index].username!,
-                            mobile: _animalLists[index].mobile!,
-                            date: finalDate!,
-                            numberOfLoveReacts:
-                                _animalLists[index].totalFollowings!,
-                            numberOfComments:
-                                _animalLists[index].totalComments!,
-                            numberOfShares: _animalLists[index].totalShares!,
-                            petId: _animalLists[index].id!,
-                            petName: _animalLists[index].petName!,
-                            petColor: _animalLists[index].color!,
-                            petGenus: _animalLists[index].genus!,
-                            petGender: _animalLists[index].gender!,
-                            petAge: _animalLists[index].age!,
-                            petImage: _animalLists[index].photo!,
-                            petVideo: _animalLists[index].video!,
-                            currentUserImage:
-                                _currentUserInfoMap['profileImageLink']!);
-                      },
+    return SmartRefresher(
+      enablePullDown: true,
+      enablePullUp: true,
+      header: WaterDropHeader(),
+      controller: _refreshController,
+      onRefresh: () => _onRefresh(postProvider, userProvider),
+      onLoading: () => _onLoading(postProvider),
+      child: ListView(
+        children: [
+          Divider(
+            height: size.width * .01,
+            thickness: size.width * .002,
+            color: Colors.grey.shade300,
+          ),
+          SizedBox(
+            height: size.width * .04,
+          ),
+          Padding(
+            padding: EdgeInsets.only(
+              left: size.width * .04,
+              right: size.width * .04,
+            ),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => CreatePost(postId: '')));
+              },
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: _currentUserImage == ''
+                        ? AssetImage('assets/profile_image_demo.png')
+                        : NetworkImage(_currentUserImage) as ImageProvider,
+                    radius: size.width * .05,
+                  ),
+                  SizedBox(width: size.width * .04),
+                  Expanded(
+                    child: Container(
+                      padding: EdgeInsets.fromLTRB(size.width * .03,
+                          size.width * .02, size.width * .03, size.width * .02),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(size.width * .04),
+                        border: Border.all(color: Colors.black),
+                      ),
+                      child: Text(
+                        'Write something...',
+                        style: TextStyle(
+                          fontSize: size.width * .035,
+                        ),
+                      ),
                     ),
-                    _moreAnimalsLoading
-                        ? Container(
-                            height: size.width * .2,
-                            child: CupertinoActivityIndicator())
-                        : Container()
-                  ],
+                  )
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: size.height * .015),
+          Divider(
+              thickness: size.width * .002,
+              color: Colors.grey,
+              height: size.width * .01),
+          Container(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => AddAnimal(petId: '')));
+                    },
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          FontAwesomeIcons.paw,
+                          size: size.width * .05,
+                        ),
+                        SizedBox(
+                          width: size.width * .02,
+                        ),
+                        Text(
+                          'Add animal',
+                          style: TextStyle(
+                              fontSize: size.width * .04, color: Colors.black),
+                        ),
+                      ],
+                    )),
+                Container(
+                  height: size.width * .06,
+                  child: VerticalDivider(
+                    thickness: size.width * .002,
+                    color: Colors.black,
+                  ),
                 ),
+                TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => CreatePost(postId: '')));
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.camera_alt,
+                        ),
+                        SizedBox(
+                          width: size.width * .02,
+                        ),
+                        Text(
+                          'Photo',
+                          style: TextStyle(
+                              fontSize: size.width * .04, color: Colors.black),
+                        ),
+                      ],
+                    )),
+                Container(
+                  height: size.width * .06,
+                  child: VerticalDivider(
+                    thickness: size.width * .002,
+                    color: Colors.black,
+                  ),
+                ),
+                TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => CreatePost(postId: '')));
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.video_camera_back_outlined,
+                        ),
+                        SizedBox(
+                          width: size.width * .02,
+                        ),
+                        Text(
+                          'Video',
+                          style: TextStyle(
+                              fontSize: size.width * .04, color: Colors.black),
+                        ),
+                      ],
+                    ))
+              ],
+            ),
+          ),
+          Divider(
+              thickness: size.width * .002,
+              color: Colors.grey,
+              height: size.width * .01),
+          SizedBox(
+            height: size.width * .02,
+          ),
+          Container(
+            width: size.width,
+            child: _loading
+                ? Center(
+                    child: Padding(
+                    padding: EdgeInsets.only(top: size.width * .3),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                      ],
+                    ),
+                  ))
+                : postProvider.allPosts.isEmpty
+                    ? Center(
+                        child: Padding(
+                        padding: EdgeInsets.only(top: size.width * .3),
+                        child: Text(
+                          'Nothing has been posted yet!',
+                          style: TextStyle(
+                            fontSize: size.width * .04,
+                          ),
+                        ),
+                      ))
+                    : ListView.builder(
+                        physics: ClampingScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: postProvider.allPosts.length,
+                        itemBuilder: (context, index) {
+                          return ShowPost(
+                            index: index,
+                            post: postProvider.allPosts[index],
+                          );
+                        },
+                      ),
+          )
+        ],
+      ),
     );
   }
 }

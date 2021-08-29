@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_lover/demo_designs/text_field_demo.dart';
+import 'package:pet_lover/login.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:pet_lover/sub_screens/pass_update.dart';
 import 'package:provider/provider.dart';
@@ -42,30 +43,42 @@ class _Confirm_passState extends State<Confirm_pass> {
     });
   }
 
+  Future<bool> _onBackPressed() async {
+    Navigator.pushAndRemoveUntil(context,
+        MaterialPageRoute(builder: (context) => Login()), (route) => false);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: Text(
-            'Reset Password',
-            style: TextStyle(
-              color: Colors.black,
-            ),
-          ),
-          elevation: 0,
+    return WillPopScope(
+      onWillPop: _onBackPressed,
+      child: Scaffold(
           backgroundColor: Colors.white,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Colors.black,
+          appBar: AppBar(
+            title: Text(
+              'Reset Password',
+              style: TextStyle(
+                color: Colors.black,
+              ),
             ),
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            elevation: 0,
+            backgroundColor: Colors.white,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back,
+                color: Colors.black,
+              ),
+              onPressed: () {
+                Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => Login()),
+                    (route) => false);
+              },
+            ),
           ),
-        ),
-        body: _bodyUI(context));
+          body: _bodyUI(context)),
+    );
   }
 
   Widget _bodyUI(BuildContext context) {

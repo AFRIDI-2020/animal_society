@@ -14,7 +14,7 @@ class MyFollowers extends StatefulWidget {
 
 class _MyFollowersState extends State<MyFollowers> {
   int _count = 0;
-  List<Follower> _followerList = [];
+
   bool _loading = false;
 
   Future _customInit(UserProvider userProvider) async {
@@ -25,13 +25,9 @@ class _MyFollowersState extends State<MyFollowers> {
 
     String mobileNo = userProvider.currentUserMobile;
 
-    await userProvider.getAllFollowers(mobileNo).then((value) {
-      if (value) {
-        setState(() {
-          _followerList = userProvider.followerList;
-          _loading = false;
-        });
-      }
+    await userProvider.getAllFollowers(mobileNo);
+    setState(() {
+      _loading = false;
     });
   }
 
@@ -40,7 +36,7 @@ class _MyFollowersState extends State<MyFollowers> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'You\'re following',
+          'Your followers',
           style: TextStyle(
             color: Colors.black,
           ),
@@ -65,13 +61,19 @@ class _MyFollowersState extends State<MyFollowers> {
     Size size = MediaQuery.of(context).size;
     final UserProvider userProvider = Provider.of<UserProvider>(context);
     if (_count == 0) _customInit(userProvider);
-    return _loading
+    return _loading == true
         ? Center(child: CircularProgressIndicator())
-        : userProvider.followerList.isNotEmpty
-            ? ListView.builder(
+        : userProvider.followerList.isEmpty
+            ? Center(
+                child: Text(
+                  'You have no follower',
+                  style: TextStyle(fontSize: size.width * .04),
+                ),
+              )
+            : ListView.builder(
                 physics: ClampingScrollPhysics(),
                 shrinkWrap: true,
-                itemCount: _followerList.length,
+                itemCount: userProvider.followerList.length,
                 itemBuilder: (context, index) {
                   return Container(
                     padding: EdgeInsets.only(
@@ -80,35 +82,23 @@ class _MyFollowersState extends State<MyFollowers> {
                     ),
                     child: Card(
                       child: ListTile(
-                        onTap: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => OtherUserProfile(
-                                      userMobileNo:
-                                          _followerList[index].mobileNo,
-                                      username: _followerList[index].name)));
-                        },
+                        onTap: () {},
                         leading: CircleAvatar(
-                          backgroundImage: _followerList[index].photo == ''
-                              ? AssetImage('assets/profile_image_demo.png')
-                              : NetworkImage(_followerList[index].photo)
-                                  as ImageProvider,
+                          backgroundImage:
+                              userProvider.followerList[index].photo == ''
+                                  ? AssetImage('assets/profile_image_demo.png')
+                                  : NetworkImage(userProvider
+                                      .followerList[index]
+                                      .photo) as ImageProvider,
                         ),
                         title: Text(
-                          _followerList[index].name,
+                          userProvider.followerList[index].name,
                           style: TextStyle(
                               color: Colors.black, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
                   );
-                })
-            : Center(
-                child: Text(
-                  'You have no followers',
-                  style: TextStyle(fontSize: size.width * .04),
-                ),
-              );
+                });
   }
 }

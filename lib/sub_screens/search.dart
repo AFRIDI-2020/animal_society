@@ -1,8 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_lover/demo_designs/animal_post.dart';
 import 'package:pet_lover/demo_designs/search_bar.dart';
+import 'package:pet_lover/demo_designs/showPost.dart';
 import 'package:pet_lover/model/animal.dart';
+import 'package:pet_lover/model/post.dart';
 import 'package:pet_lover/provider/animalProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:provider/provider.dart';
@@ -16,57 +19,25 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   TextEditingController _searchController = TextEditingController();
-  List<Animal> _allAnimalList = [];
-  List<Animal> _searchedList = [];
-  int _count = 0;
-  String? finalDate;
-  Map<String, String> _currentUserInfoMap = {};
-
-  Future _customInit(
-      AnimalProvider animalProvider, UserProvider userProvider) async {
-    _count++;
-    await userProvider.getCurrentUserInfo().then((value) {
-      _currentUserInfoMap = userProvider.currentUserMap;
-    });
-    _allAnimals(animalProvider);
-  }
-
-  _allAnimals(AnimalProvider animalProvider) async {
-    await animalProvider.searchAnimals().then((value) {
-      setState(() {
-        _allAnimalList = animalProvider.searchedAnimals;
-      });
-    });
-  }
-
-  _searchAnimals(String searchItem) {
-    setState(() {
-      if (searchItem == '') {
-        searchItem = 'abcdef';
-      }
-      _searchedList = _allAnimalList
-          .where((element) => (element.petName!
-              .toLowerCase()
-              .contains(searchItem.toLowerCase())))
-          .toList();
-    });
-  }
+  List<Post> _searchList = [];
 
   @override
   Widget build(BuildContext context) {
-    final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
-    final UserProvider userProvider = Provider.of<UserProvider>(context);
-    if (_count == 0) _customInit(animalProvider, userProvider);
+    Size size = MediaQuery.of(context).size;
     return Scaffold(
-        resizeToAvoidBottomInset: false,
         appBar: AppBar(
-          title: Text(
-            'Search Animals',
-            style: TextStyle(
-              color: Colors.black,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          elevation: 0.0,
+          title: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "Search",
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: size.width * .05,
+              ),
             ),
           ),
-          backgroundColor: Colors.white,
           leading: IconButton(
             icon: Icon(
               Icons.arrow_back,
@@ -76,91 +47,43 @@ class _SearchPageState extends State<SearchPage> {
               Navigator.pop(context);
             },
           ),
-          elevation: 0.0,
         ),
-        body: _bodyUI(context));
+        body: Container(
+            width: size.width,
+            child: Column(
+              children: [
+                searchBar(context),
+                ListView.builder(
+                    physics: ClampingScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: _searchList.length,
+                    itemBuilder: (context, index) {
+                      return ShowPost(index: index, post: _searchList[index]);
+                    }),
+              ],
+            )));
   }
 
-  Widget _bodyUI(BuildContext context) {
+  Widget searchBar(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     return Container(
-        width: size.width,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          searchAnimalsField(context),
-          SizedBox(
-            height: size.width * .03,
-          ),
-          Expanded(
-            child: Container(
-              width: size.width,
-              child: _searchedList.isEmpty
-                  ? Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      physics: ClampingScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: _searchedList.length,
-                      itemBuilder: (context, index) {
-                        DateTime miliDate =
-                            new DateTime.fromMillisecondsSinceEpoch(
-                                int.parse(_searchedList[index].date!));
-                        var format = new DateFormat("yMMMd").add_jm();
-                        finalDate = format.format(miliDate);
-
-                        return AnimalPost(
-                            index: index,
-                            profileImageLink:
-                                _searchedList[index].userProfileImage!,
-                            username: _searchedList[index].username!,
-                            mobile: _searchedList[index].mobile!,
-                            date: finalDate!,
-                            numberOfLoveReacts:
-                                _searchedList[index].totalFollowings!,
-                            numberOfComments:
-                                _searchedList[index].totalComments!,
-                            numberOfShares: _searchedList[index].totalShares!,
-                            petId: _searchedList[index].id!,
-                            petName: _searchedList[index].petName!,
-                            petColor: _searchedList[index].color!,
-                            petGenus: _searchedList[index].genus!,
-                            petGender: _searchedList[index].gender!,
-                            petAge: _searchedList[index].age!,
-                            petImage: _searchedList[index].photo!,
-                            petVideo: _searchedList[index].video!,
-                            currentUserImage:
-                                _currentUserInfoMap['profileImageLink']!);
-                      }),
-            ),
-          ),
-        ]));
-  }
-
-  Widget searchAnimalsField(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(size.width * .04, size.width * .04,
-          size.width * .04, size.width * .02),
+      width: size.width,
+      padding: EdgeInsets.only(left: size.width * .04, right: size.width * .04),
       child: Row(
         children: [
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(size.width * .05),
+                borderRadius: BorderRadius.circular(size.width * .25),
                 color: Colors.grey[300],
               ),
               padding: EdgeInsets.fromLTRB(
                   0, size.width * .02, size.width * .02, size.width * .02),
               child: TextFormField(
-                onChanged: _searchAnimals,
                 cursorColor: Colors.black,
+                controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Pet name',
+                  hintText: 'Search here...',
                   hintStyle: TextStyle(color: Colors.black),
                   isDense: true,
                   contentPadding: EdgeInsets.only(left: size.width * .04),
@@ -170,8 +93,68 @@ class _SearchPageState extends State<SearchPage> {
               ),
             ),
           ),
+          SizedBox(
+            width: size.width * .02,
+          ),
+          InkWell(
+            onTap: () {
+              _search(_searchController.text);
+            },
+            child: Container(
+              padding: EdgeInsets.fromLTRB(
+                size.width * .04,
+                size.width * .02,
+                size.width * .04,
+                size.width * .02,
+              ),
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(size.width * .25),
+                  color: Colors.grey[300]),
+              child: Text(
+                'Search',
+                style: TextStyle(color: Colors.black),
+              ),
+            ),
+          )
         ],
       ),
     );
+  }
+
+  _search(String text) async {
+    if (text.isEmpty) {
+      return;
+    }
+
+    await FirebaseFirestore.instance
+        .collection('Animals')
+        .doc(text)
+        .get()
+        .then((snapshot) {
+      if (snapshot.exists) {
+        Post post = Post(
+            postId: snapshot['postId'],
+            postOwnerId: snapshot['postOwnerId'],
+            postOwnerMobileNo: snapshot['postOwnerMobileNo'],
+            postOwnerName: snapshot['postOwnerName'],
+            postOwnerImage: snapshot['postOwnerImage'],
+            date: snapshot['date'],
+            status: snapshot['status'],
+            photo: snapshot['photo'],
+            video: snapshot['video'],
+            animalToken: snapshot['animalToken'],
+            animalName: snapshot['animalName'],
+            animalColor: snapshot['animalColor'],
+            animalAge: snapshot['animalAge'],
+            animalGender: snapshot['animalGender'],
+            animalGenus: snapshot['animalGenus'],
+            totalFollowers: snapshot['totalFollowers'],
+            totalComments: snapshot['totalComments'],
+            totalShares: snapshot['totalShares'],
+            groupId: snapshot['groupId'],
+            shareId: snapshot['shareId']);
+        _searchList.add(post);
+      }
+    });
   }
 }

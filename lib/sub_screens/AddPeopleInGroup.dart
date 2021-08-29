@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pet_lover/model/follower.dart';
+import 'package:pet_lover/model/followerDemo.dart';
 import 'package:pet_lover/provider/groupProvider.dart';
+import 'package:pet_lover/provider/postProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:provider/provider.dart';
 
@@ -24,6 +27,10 @@ class _AddPeopleInGroupState extends State<AddPeopleInGroup> {
   String _personMobileNo = '';
   bool _isMember = false;
   bool _adding = false;
+  List<Follower> peopleList = [];
+  int _count = 0;
+  bool _loading = false;
+  bool _searching = false;
 
   _searchPeople(UserProvider userProvider, String mobileNo,
       GroupProvider groupProvider) async {
@@ -32,10 +39,12 @@ class _AddPeopleInGroupState extends State<AddPeopleInGroup> {
       setState(() {
         _isUserExits = userProvider.isUserExists;
         if (_isUserExits == true) {
-          _peopleInfo = userProvider.specificUserMap;
-          _personName = _peopleInfo!['username']!;
-          _personMobileNo = _peopleInfo!['mobileNo']!;
-          _personProfileImage = _peopleInfo!['profileImageLink']!;
+          setState(() {
+            _peopleInfo = userProvider.specificUserMap;
+            _personName = _peopleInfo!['username']!;
+            _personMobileNo = _peopleInfo!['mobileNo']!;
+            _personProfileImage = _peopleInfo!['profileImageLink']!;
+          });
         }
       });
     });
@@ -50,8 +59,9 @@ class _AddPeopleInGroupState extends State<AddPeopleInGroup> {
   }
 
   Future _addMember(GroupProvider groupProvider, String mobileNo, String date,
-      UserProvider userProvider) async {
-    await groupProvider.addMember(groupId, mobileNo, date, userProvider);
+      UserProvider userProvider, PostProvider postProvider, int index) async {
+    await postProvider.addMember(groupId, mobileNo, date, userProvider, index,
+        postProvider, groupProvider);
   }
 
   _showToast(BuildContext context) {
@@ -61,6 +71,24 @@ class _AddPeopleInGroupState extends State<AddPeopleInGroup> {
         content: Text('$_personName has been added successfully.'),
       ),
     );
+  }
+
+  Future<void> _customInit(PostProvider postProvider, UserProvider userProvider,
+      GroupProvider groupProvider, String groupId) async {
+    setState(() {
+      _count++;
+      _loading = true;
+    });
+    await postProvider
+        .getPeopleList(userProvider.currentUserMobile, userProvider,
+            groupProvider, groupId)
+        .then((value) {
+      setState(() {
+        _loading = false;
+      });
+    });
+
+    print('number of people = ${postProvider.peopleList.length}');
   }
 
   @override
@@ -94,6 +122,10 @@ class _AddPeopleInGroupState extends State<AddPeopleInGroup> {
     Size size = MediaQuery.of(context).size;
     final GroupProvider groupProvider = Provider.of<GroupProvider>(context);
     final UserProvider userProvider = Provider.of<UserProvider>(context);
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
+    if (_count == 0)
+      _customInit(postProvider, userProvider, groupProvider, groupId);
+
     return Container(
       width: size.width,
       padding: EdgeInsets.only(
@@ -119,87 +151,164 @@ class _AddPeopleInGroupState extends State<AddPeopleInGroup> {
           SizedBox(
             height: size.width * .06,
           ),
-          _isUserExits == null
-              ? Text(
-                  'Search and add people in your group',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: size.width * .04,
+          Visibility(
+            visible: _searching,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Expanded(
+                    child: Container(
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                          backgroundImage: _personProfileImage == ''
+                              ? AssetImage('assets/profile_image_demo.png')
+                              : NetworkImage(_personProfileImage)
+                                  as ImageProvider,
+                          radius: size.width * .06),
+                      SizedBox(width: size.width * .04),
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _personName,
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: size.width * .04,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              _personMobileNo,
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: size.width * .035,
+                              ),
+                            )
+                          ]),
+                    ],
                   ),
-                )
-              : _isUserExits == true
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Expanded(
-                            child: Container(
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                  backgroundImage: _personProfileImage == ''
-                                      ? AssetImage(
-                                          'assets/profile_image_demo.png')
-                                      : NetworkImage(_personProfileImage)
-                                          as ImageProvider,
-                                  radius: size.width * .06),
-                              SizedBox(width: size.width * .04),
-                              Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _personName,
-                                      style: TextStyle(
-                                          color: Colors.black,
-                                          fontSize: size.width * .04,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                    Text(
-                                      _personMobileNo,
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontSize: size.width * .035,
-                                      ),
-                                    )
-                                  ]),
-                            ],
-                          ),
-                        )),
-                        _isMember == true
-                            ? Text('Added')
-                            : _adding == true
-                                ? CircularProgressIndicator()
-                                : ElevatedButton(
-                                    child: Text('+ Add'),
-                                    onPressed: () {
-                                      setState(() {
-                                        _adding = true;
-                                        String date = DateTime.now()
-                                            .millisecondsSinceEpoch
-                                            .toString();
-                                        _addMember(
-                                                groupProvider,
-                                                _personMobileNo,
-                                                date,
-                                                userProvider)
-                                            .then((value) {
-                                          setState(() {
-                                            _isMember = true;
-                                            _adding = false;
-                                          });
-                                          _showToast(context);
-                                        });
-                                      });
-                                    },
-                                  )
-                      ],
-                    )
-                  : Text(
-                      'User not found yet!',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: size.width * .04,
-                      ),
-                    )
+                )),
+                _isMember == true
+                    ? Text('added')
+                    : ElevatedButton(
+                        child: Text('+ Add'),
+                        onPressed: () {
+                          setState(() {
+                            _adding = true;
+                            String date = DateTime.now()
+                                .millisecondsSinceEpoch
+                                .toString();
+                            groupProvider
+                                .addMember(
+                              groupId,
+                              _personMobileNo,
+                              date,
+                              userProvider,
+                              postProvider,
+                            )
+                                .then((value) {
+                              setState(() {
+                                _isMember = true;
+                              });
+                              _showToast(context);
+                            });
+                          });
+                        },
+                      )
+              ],
+            ),
+          ),
+          SizedBox(
+            height: size.width * .06,
+          ),
+          Text(
+            'Suggestions',
+            style: TextStyle(
+                color: Colors.black,
+                fontSize: size.width * .05,
+                fontWeight: FontWeight.bold),
+          ),
+          SizedBox(
+            height: size.width * .06,
+          ),
+          _loading
+              ? Center(child: CircularProgressIndicator())
+              : postProvider.peopleList.isEmpty
+                  ? Text('Nothing to suggest!')
+                  : ListView.builder(
+                      physics: ClampingScrollPhysics(),
+                      shrinkWrap: true,
+                      itemCount: postProvider.peopleList.length,
+                      itemBuilder: (context, index) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Expanded(
+                                child: Container(
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                      backgroundImage: postProvider
+                                                  .peopleList[index].photo ==
+                                              ''
+                                          ? AssetImage(
+                                              'assets/profile_image_demo.png')
+                                          : NetworkImage(postProvider
+                                              .peopleList[index]
+                                              .photo) as ImageProvider,
+                                      radius: size.width * .06),
+                                  SizedBox(width: size.width * .04),
+                                  Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          postProvider.peopleList[index].name,
+                                          style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: size.width * .04,
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                        Text(
+                                          postProvider
+                                              .peopleList[index].mobileNo,
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontSize: size.width * .035,
+                                          ),
+                                        )
+                                      ]),
+                                ],
+                              ),
+                            )),
+                            ElevatedButton(
+                              child: Text('+ Add'),
+                              onPressed: () {
+                                setState(() {
+                                  _adding = true;
+                                  String date = DateTime.now()
+                                      .millisecondsSinceEpoch
+                                      .toString();
+                                  _addMember(
+                                          groupProvider,
+                                          postProvider
+                                              .peopleList[index].mobileNo,
+                                          date,
+                                          userProvider,
+                                          postProvider,
+                                          index)
+                                      .then((value) {
+                                    setState(() {
+                                      _adding = false;
+                                    });
+                                    _showToast(context);
+                                  });
+                                });
+                              },
+                            )
+                          ],
+                        );
+                      }),
         ],
       ),
     );
@@ -248,6 +357,9 @@ class _AddPeopleInGroupState extends State<AddPeopleInGroup> {
               _errorText = '';
               _errorTextVisibility = false;
               _isMemberOrNot(groupProvider, _mobileNoController.text);
+              setState(() {
+                _searching = true;
+              });
               _searchPeople(
                   userProvider, _mobileNoController.text, groupProvider);
             });

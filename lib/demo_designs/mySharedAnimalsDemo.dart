@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'my_animals_menu_item_demo.dart';
 
 class MySharedAnimalsDemo extends StatefulWidget {
+  int index;
   String profileImageLink;
   String username;
   String mobile;
@@ -28,6 +29,7 @@ class MySharedAnimalsDemo extends StatefulWidget {
   String currentUserImage;
   MySharedAnimalsDemo(
       {Key? key,
+      required this.index,
       required this.profileImageLink,
       required this.username,
       required this.mobile,
@@ -48,6 +50,7 @@ class MySharedAnimalsDemo extends StatefulWidget {
 
   @override
   _MySharedAnimalsDemoState createState() => _MySharedAnimalsDemoState(
+      index,
       profileImageLink,
       username,
       mobile,
@@ -67,6 +70,7 @@ class MySharedAnimalsDemo extends StatefulWidget {
 }
 
 class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
+  int index;
   String profileImageLink;
   String username;
   String mobile;
@@ -84,6 +88,7 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
   String petVideo;
   String currentUserImage;
   _MySharedAnimalsDemoState(
+      this.index,
       this.profileImageLink,
       this.username,
       this.mobile,
@@ -123,9 +128,9 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
       _currentImage = userInfo['profileImageLink'];
     });
 
-    _getCommentsNumber(animalProvider, petId);
+    // _getCommentsNumber(animalProvider, petId);
     _getFollowersNumber(animalProvider, petId);
-    _getSharesNumber(animalProvider, petId);
+    // _getSharesNumber(animalProvider, petId);
     _isFollowerOrNot(animalProvider, _currentMobileNo!);
   }
 
@@ -136,9 +141,10 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
       String followingName,
       String followerName,
       String followingImage,
-      String followerImage) async {
+      String followerImage,
+      UserProvider userProvider) async {
     await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,
-        followerName, followingImage, followerImage);
+        followerName, followingImage, followerImage, userProvider);
   }
 
   _isFollowerOrNot(
@@ -277,7 +283,8 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
                         widget.username,
                         _username!,
                         widget.profileImageLink,
-                        _currentImage!);
+                        _currentImage!,
+                        userProvider);
                   }
                   if (_isFollowed == false) {
                     _getFollowersNumber(animalProvider, petId);
@@ -302,7 +309,7 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
             Padding(
               padding: EdgeInsets.only(left: size.width * .04),
               child: Text(
-                _numberOfComments.toString(),
+                animalProvider.animalList[index].totalComments,
                 style:
                     TextStyle(color: Colors.black, fontSize: size.width * .038),
               ),
@@ -315,6 +322,7 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
                 //         builder: (context) => CommetPage(
                 //               id: petId,
                 //               animalOwnerMobileNo: mobile,
+                //               index: index,
                 //             )));
               },
               child: Padding(
@@ -330,7 +338,7 @@ class _MySharedAnimalsDemoState extends State<MySharedAnimalsDemo> {
             Padding(
               padding: EdgeInsets.only(left: size.width * .04),
               child: Text(
-                _numberOfShares.toString(),
+                animalProvider.animalList[index].totalShares,
                 style:
                     TextStyle(color: Colors.black, fontSize: size.width * .038),
               ),

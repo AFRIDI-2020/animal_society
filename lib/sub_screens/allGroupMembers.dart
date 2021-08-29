@@ -45,6 +45,9 @@ class _AllGroupMembersState extends State<AllGroupMembers> {
 
   _searchMember(String searchItem) {
     setState(() {
+      if (searchItem == '') {
+        searchItem = 'dfsdghsodhfdson';
+      }
       _searchedMembers = _allMembers
           .where((element) => (element.username
               .toLowerCase()

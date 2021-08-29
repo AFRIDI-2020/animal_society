@@ -32,14 +32,15 @@ class _MySharedAnimalsState extends State<MySharedAnimals> {
     await userProvider.getCurrentUserInfo().then((value) {
       _currentUserInfoMap = userProvider.currentUserMap;
       _userMobileNo = _currentUserInfoMap['mobileNo']!;
+      print('shared animals owner mobile no = $_userMobileNo');
     });
 
     await animalProvider.getUserSharedAnimals(_userMobileNo).then((value) {
       setState(() {
         _loading = false;
-        _sharedAnimalList = animalProvider.userSharedAnimals;
-        print('sharedAnimalList length = ${_sharedAnimalList.length}');
       });
+      print(
+          'total shared animals = ${animalProvider.userSharedAnimals.length}');
     });
   }
 
@@ -78,40 +79,45 @@ class _MySharedAnimalsState extends State<MySharedAnimals> {
 
     return _loading
         ? Center(child: CircularProgressIndicator())
-        : _sharedAnimalList.isEmpty
+        : animalProvider.userSharedAnimals.isEmpty
             ? Center(
                 child: Text(
-                  'You have no followers',
+                  'Nothing has been shared yet!',
                   style: TextStyle(fontSize: size.width * .04),
                 ),
               )
             : ListView.builder(
                 physics: ClampingScrollPhysics(),
                 shrinkWrap: true,
-                itemCount: _sharedAnimalList.length,
+                itemCount: animalProvider.userSharedAnimals.length,
                 itemBuilder: (context, index) {
                   DateTime miliDate = new DateTime.fromMillisecondsSinceEpoch(
-                      int.parse(_sharedAnimalList[index].date!));
+                      int.parse(animalProvider.userSharedAnimals[index].date!));
                   var format = new DateFormat("yMMMd").add_jm();
                   finalDate = format.format(miliDate);
                   return MySharedAnimalsDemo(
-                      profileImageLink:
-                          _sharedAnimalList[index].userProfileImage!,
-                      username: _sharedAnimalList[index].username!,
-                      mobile: _sharedAnimalList[index].mobile!,
+                      index: index,
+                      profileImageLink: animalProvider
+                          .userSharedAnimals[index].userProfileImage!,
+                      username:
+                          animalProvider.userSharedAnimals[index].username!,
+                      mobile: animalProvider.userSharedAnimals[index].mobile!,
                       date: finalDate!,
-                      numberOfLoveReacts:
-                          _sharedAnimalList[index].totalFollowings!,
-                      numberOfComments: _sharedAnimalList[index].totalComments!,
-                      numberOfShares: _sharedAnimalList[index].totalShares!,
-                      petId: _sharedAnimalList[index].id!,
-                      petName: _sharedAnimalList[index].petName!,
-                      petColor: _sharedAnimalList[index].color!,
-                      petGenus: _sharedAnimalList[index].genus!,
-                      petGender: _sharedAnimalList[index].gender!,
-                      petAge: _sharedAnimalList[index].age!,
-                      petImage: _sharedAnimalList[index].photo!,
-                      petVideo: _sharedAnimalList[index].video!,
+                      numberOfLoveReacts: animalProvider
+                          .userSharedAnimals[index].totalFollowings!,
+                      numberOfComments: animalProvider
+                          .userSharedAnimals[index].totalComments!,
+                      numberOfShares:
+                          animalProvider.userSharedAnimals[index].totalShares!,
+                      petId: animalProvider.userSharedAnimals[index].id!,
+                      petName: animalProvider.userSharedAnimals[index].petName!,
+                      petColor: animalProvider.userSharedAnimals[index].color!,
+                      petGenus: animalProvider.userSharedAnimals[index].genus!,
+                      petGender:
+                          animalProvider.userSharedAnimals[index].gender!,
+                      petAge: animalProvider.userSharedAnimals[index].age!,
+                      petImage: animalProvider.userSharedAnimals[index].photo!,
+                      petVideo: animalProvider.userSharedAnimals[index].video!,
                       currentUserImage:
                           _currentUserInfoMap['profileImageLink']!);
                 });

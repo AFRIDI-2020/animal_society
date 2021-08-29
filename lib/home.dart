@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:pet_lover/custom_classes/DatabaseManager.dart';
+import 'package:pet_lover/demo_designs/search_menu.dart';
+import 'package:pet_lover/login.dart';
+import 'package:pet_lover/model/search_menu_item.dart';
 import 'package:pet_lover/navigation_bar_screens/account_nav.dart';
 import 'package:pet_lover/navigation_bar_screens/chat_nav.dart';
 import 'package:pet_lover/navigation_bar_screens/following_nav.dart';
 import 'package:pet_lover/navigation_bar_screens/home_nav.dart';
+import 'package:pet_lover/provider/postProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
+import 'package:pet_lover/sub_screens/EditProfile.dart';
+import 'package:pet_lover/sub_screens/animal_name_search.dart';
+import 'package:pet_lover/sub_screens/groups.dart';
+import 'package:pet_lover/sub_screens/reset_password.dart';
 import 'package:pet_lover/sub_screens/search.dart';
+import 'package:pet_lover/sub_screens/token_search.dart';
 import 'package:provider/provider.dart';
-
-import 'demo_designs/profile_options.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -26,15 +34,14 @@ class _HomeState extends State<Home> {
     AccountNav(),
   ];
 
-  bool _titleVisibility = true;
-  String _appbarTitle = '';
+  String _appbarTitle = 'Home';
 
   var _pageController = PageController();
 
   GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey();
   Map<String, String> _currentUserInfo = {};
   int _count = 0;
-  String _userProfileImage = '';
+
   String _username = '';
   String _finalUsername = '';
   String _mobileNo = '';
@@ -46,7 +53,7 @@ class _HomeState extends State<Home> {
     await userProvider.getCurrentUserInfo().then((value) {
       setState(() {
         _currentUserInfo = userProvider.currentUserMap;
-        _userProfileImage = _currentUserInfo['profileImageLink']!;
+
         _username = _currentUserInfo['username']!;
 
         if (_username.length > 11) {
@@ -101,6 +108,7 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     final UserProvider userProvider = Provider.of<UserProvider>(context);
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
     if (_count == 0) _customInit(userProvider);
     Size size = MediaQuery.of(context).size;
     return SafeArea(
@@ -123,10 +131,17 @@ class _HomeState extends State<Home> {
                       children: [
                         CircleAvatar(
                           radius: size.width * .08,
-                          backgroundImage: _userProfileImage == ''
+                          backgroundImage: userProvider
+                                      .currentUserMap['profileImageLink'] ==
+                                  null
                               ? AssetImage('assets/profile_image_demo.png')
-                              : NetworkImage(_userProfileImage)
-                                  as ImageProvider,
+                              : userProvider
+                                          .currentUserMap['profileImageLink'] ==
+                                      ''
+                                  ? AssetImage('assets/profile_image_demo.png')
+                                  : NetworkImage(userProvider
+                                          .currentUserMap['profileImageLink'])
+                                      as ImageProvider,
                         ),
                         SizedBox(width: size.width * .04),
                         Column(
@@ -151,30 +166,108 @@ class _HomeState extends State<Home> {
                         ),
                       ],
                     )),
-                ProfileOption().showOption(context, 'Update account'),
-                ProfileOption().showOption(context, 'Reset password'),
-                ProfileOption().showOption(context, 'Logout'),
+                ListTile(
+                  onTap: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => EditProfileUser()));
+                  },
+                  title: Text(
+                    'Update account',
+                    style: TextStyle(
+                        color: Colors.black, fontSize: size.width * .04),
+                  ),
+                  leading: Icon(
+                    Icons.edit,
+                    color: Colors.deepOrange,
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: Colors.black,
+                  ),
+                ),
+                ListTile(
+                  onTap: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => ResetPassword()));
+                  },
+                  title: Text(
+                    'Reset password',
+                    style: TextStyle(
+                        color: Colors.black, fontSize: size.width * .04),
+                  ),
+                  leading: Icon(
+                    Icons.vpn_key,
+                    color: Colors.deepOrange,
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: Colors.black,
+                  ),
+                ),
+                ListTile(
+                  onTap: () async {
+                    await postProvider.makeAllListsEmpty();
+                    DatabaseManager().clearSharedPref();
+                    Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => Login()),
+                        (route) => false);
+                  },
+                  title: Text(
+                    'Logout',
+                    style: TextStyle(
+                        color: Colors.black, fontSize: size.width * .04),
+                  ),
+                  leading: Icon(
+                    Icons.logout,
+                    color: Colors.deepOrange,
+                  ),
+                )
               ],
             ),
           ),
           appBar: AppBar(
             leading: IconButton(
-              icon: Icon(
-                Icons.menu,
-                color: Colors.black,
-              ),
-              onPressed: () {
-                if (_scaffoldKey.currentState!.isDrawerOpen) {
-                  _scaffoldKey.currentState!.openEndDrawer();
-                } else {
-                  _scaffoldKey.currentState!.openDrawer();
-                }
-              },
-            ),
-            title:
-                _currentIndex == 0 ? searchBar(context) : appBarTitle(context),
+                onPressed: () {
+                  if (_scaffoldKey.currentState!.isDrawerOpen) {
+                    _scaffoldKey.currentState!.openEndDrawer();
+                  } else {
+                    _scaffoldKey.currentState!.openDrawer();
+                  }
+                },
+                icon: Icon(
+                  Icons.menu,
+                  color: Colors.black,
+                )),
+            title: appBarTitle(context),
             backgroundColor: Colors.white,
             elevation: 0,
+            actions: [
+              PopupMenuButton<SearchMenuItem>(
+                  icon: Icon(
+                    Icons.search,
+                    color: Colors.black,
+                  ),
+                  onSelected: (item) => onSelectedMenuItem(
+                        context,
+                        item,
+                      ),
+                  itemBuilder: (context) =>
+                      [...SearchMenu.searchMenuList.map(buildItem).toList()]),
+              IconButton(
+                  onPressed: () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (context) => Groups()));
+                  },
+                  icon: Icon(
+                    Icons.group_rounded,
+                    color: Colors.black,
+                  )),
+            ],
           ),
           body: PageView(
             children: _tabs,
@@ -182,13 +275,13 @@ class _HomeState extends State<Home> {
               setState(() {
                 _currentIndex = index;
                 if (_currentIndex == 2) {
-                  _appbarTitle = 'Conversation';
+                  _appbarTitle = 'Chat';
                 } else if (_currentIndex == 1) {
                   _appbarTitle = 'Favourite';
                 } else if (_currentIndex == 3) {
                   _appbarTitle = 'Account';
                 } else {
-                  _titleVisibility = true;
+                  _appbarTitle = 'Home';
                 }
               });
             },
@@ -219,16 +312,12 @@ class _HomeState extends State<Home> {
                 setState(() {
                   _currentIndex = index;
                   if (_currentIndex == 2) {
-                    _appbarTitle = 'Conversation';
+                    _appbarTitle = 'Chat';
                   } else if (_currentIndex == 0) {
-                    _titleVisibility = false;
+                    _appbarTitle = 'Home';
                   } else if (_currentIndex == 1) {
-                    _titleVisibility = true;
-
                     _appbarTitle = 'Favourite';
                   } else if (_currentIndex == 3) {
-                    _titleVisibility = true;
-
                     _appbarTitle = 'Account';
                   }
                   _pageController.animateToPage(_currentIndex,
@@ -276,13 +365,29 @@ class _HomeState extends State<Home> {
   }
 
   Widget appBarTitle(BuildContext context) {
-    return Visibility(
-      visible: _titleVisibility,
-      child: Text('$_appbarTitle',
-          style: TextStyle(
-            color: Colors.black,
-            fontFamily: 'MateSC',
-          )),
-    );
+    return Text('$_appbarTitle',
+        style: TextStyle(
+          color: Colors.black,
+          fontFamily: 'MateSC',
+        ));
+  }
+
+  PopupMenuItem<SearchMenuItem> buildItem(SearchMenuItem item) =>
+      PopupMenuItem<SearchMenuItem>(value: item, child: Text(item.text));
+
+  onSelectedMenuItem(
+    BuildContext context,
+    SearchMenuItem item,
+  ) {
+    switch (item) {
+      case SearchMenu.tokenSearch:
+        Navigator.push(
+            context, MaterialPageRoute(builder: (context) => TokenSearch()));
+        break;
+      case SearchMenu.animalNameSearch:
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => AnimalNameSearch()));
+        break;
+    }
   }
 }

@@ -33,8 +33,6 @@ class _UserFollowingState extends State<UserFollowing> {
     await userProvider.getAllFollowingPeople(userMobileNo).then((value) {
       setState(() {
         _loading = false;
-        _followingList = userProvider.followingList;
-        print('length = ${_followingList!.length}');
       });
     });
   }
@@ -71,18 +69,17 @@ class _UserFollowingState extends State<UserFollowing> {
     if (_count == 0) _customInit(userProvider);
     return _loading
         ? Center(child: CircularProgressIndicator())
-        : _followingList!.length == 0
-            ? Padding(
-                padding: EdgeInsets.all(size.width * .04),
+        : userProvider.followingList.isEmpty
+            ? Center(
                 child: Text(
-                  'This person is follwoing nobody.',
+                  '$username is following nobody!',
                   style: TextStyle(fontSize: size.width * .04),
                 ),
               )
             : ListView.builder(
                 physics: ClampingScrollPhysics(),
                 shrinkWrap: true,
-                itemCount: _followingList!.length,
+                itemCount: userProvider.followingList.length,
                 itemBuilder: (context, index) {
                   return Container(
                     padding: EdgeInsets.only(
@@ -92,22 +89,24 @@ class _UserFollowingState extends State<UserFollowing> {
                     child: Card(
                       child: ListTile(
                         onTap: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => OtherUserProfile(
-                                      userMobileNo:
-                                          _followingList![index].mobileNo,
-                                      username: _followingList![index].name)));
+                          // Navigator.push(
+                          //     context,
+                          //     MaterialPageRoute(
+                          //         builder: (context) => OtherUserProfile(
+                          //             userMobileNo: userProvider
+                          //                 .followingList[index].mobileNo,
+                          //             username: _followingList![index].name)));
                         },
                         leading: CircleAvatar(
-                          backgroundImage: _followingList![index].photo == ''
-                              ? AssetImage('assets/profile_image_demo.jpg')
-                              : NetworkImage(_followingList![index].photo)
-                                  as ImageProvider,
+                          backgroundImage:
+                              userProvider.followingList[index].photo == ''
+                                  ? AssetImage('assets/profile_image_demo.jpg')
+                                  : NetworkImage(userProvider
+                                      .followingList[index]
+                                      .photo) as ImageProvider,
                         ),
                         title: Text(
-                          _followingList![index].name,
+                          userProvider.followingList[index].name,
                           style: TextStyle(
                               color: Colors.black, fontWeight: FontWeight.w600),
                         ),

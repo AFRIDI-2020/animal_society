@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pet_lover/home.dart';
 import 'package:pet_lover/login.dart';
 
 class RegistrationSuccessful extends StatefulWidget {
@@ -9,11 +11,51 @@ class RegistrationSuccessful extends StatefulWidget {
 }
 
 class _RegistrationSuccessfulState extends State<RegistrationSuccessful> {
+  Future<bool> _onBackPressed() async {
+    return (await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+                  title: Row(
+                    children: [
+                      Icon(Icons.exit_to_app),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Text(
+                        'Exit App',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                    ],
+                  ),
+                  content: Text(
+                    'Do you really want to exit the app?',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: Text('No'),
+                    ),
+                    TextButton(
+                      onPressed: () => SystemChannels.platform
+                          .invokeMethod('SystemNavigator.pop'),
+                      child: Text(
+                        'Yes',
+                        style: TextStyle(color: Colors.green),
+                      ),
+                    )
+                  ],
+                ))) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // backgroundColor: Colors.white,
-      body: _bodyUI(context),
+    return WillPopScope(
+      onWillPop: _onBackPressed,
+      child: Scaffold(
+        body: _bodyUI(context),
+      ),
     );
   }
 
@@ -71,7 +113,7 @@ class _RegistrationSuccessfulState extends State<RegistrationSuccessful> {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.push(context,
-                      (MaterialPageRoute(builder: (context) => Login())));
+                      (MaterialPageRoute(builder: (context) => Home())));
                 },
                 child: Text(
                   'GET STARTED',

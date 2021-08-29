@@ -83,6 +83,8 @@ class _UserAnimalsState extends State<UserAnimals> {
               finalDate = format.format(miliDate);
               return AnimalPost(
                   index: index,
+                  status: _otherUserAnimals[index].status!,
+                  groupId: _otherUserAnimals[index].groupId!,
                   profileImageLink: _otherUserAnimals[index].userProfileImage!,
                   username: _otherUserAnimals[index].username!,
                   mobile: _otherUserAnimals[index].mobile!,

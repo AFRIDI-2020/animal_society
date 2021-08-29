@@ -1,180 +1,213 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:pet_lover/demo_designs/showPost.dart';
+import 'package:pet_lover/home.dart';
 import 'package:pet_lover/provider/animalProvider.dart';
+import 'package:pet_lover/provider/postProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
-import 'package:pet_lover/sub_screens/userFollowers.dart';
-import 'package:pet_lover/sub_screens/userFollowing.dart';
-import 'package:pet_lover/sub_screens/users_animals.dart';
-import 'package:pet_lover/sub_screens/users_shared_animals.dart';
+import 'package:pet_lover/sub_screens/otherUserProfilePost.dart';
 import 'package:provider/provider.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 class OtherUserProfile extends StatefulWidget {
-  String userMobileNo;
-  String username;
-  OtherUserProfile(
-      {Key? key, required this.userMobileNo, required this.username})
-      : super(key: key);
-
+  String userId;
+  OtherUserProfile({required this.userId});
   @override
-  _OtherUserProfileState createState() =>
-      _OtherUserProfileState(userMobileNo, username);
+  _OtherUserProfileState createState() => _OtherUserProfileState();
 }
 
 class _OtherUserProfileState extends State<OtherUserProfile> {
-  String userMobileNo;
-  String username;
-  _OtherUserProfileState(this.userMobileNo, this.username);
-  Map<String, String> _userInfo = {};
-  int count = 0;
-  int _numberOfAnimals = 0;
-  String _address = '';
-  String _profileImageLink = '';
-  int _numberOfFollowers = 0;
+  int _count = 0;
+  Map<String, String> _currentUserInfoMap = {};
+  String userProfileImage = '';
+  String username = '';
+  String address = '';
+  int _totalAnimals = 0;
+  int _totalFollowers = 0;
+  int _totalFollowing = 0;
+  bool _loading = false;
+  int _itemCount = 0;
+  RefreshController _refreshController =
+      RefreshController(initialRefresh: false);
 
-  Future _customInit(
-      UserProvider userProvider, AnimalProvider animalProvider) async {
-    _getUserInfo(userProvider, userMobileNo);
-    _getNumberOfAnimals(animalProvider);
-    _getNumberOfFollowers(animalProvider);
+  _customInit(AnimalProvider animalProvider, UserProvider userProvider,
+      PostProvider postProvider) async {
     setState(() {
-      count++;
+      _count++;
+      _loading = true;
+    });
+    print('getting id : ${widget.userId}');
+
+    await userProvider.getSpecificUserInfo(widget.userId).then((value) {
+      setState(() {
+        userProfileImage = userProvider.specificUserMap['profileImageLink'];
+        username = userProvider.specificUserMap['username'];
+        address = userProvider.specificUserMap['address'];
+      });
+    });
+    await postProvider.getOtherUserPosts(widget.userId);
+    await postProvider.getOtherUserAnimalsNumber(widget.userId);
+    await userProvider.getOtherUserFollowersNumber(widget.userId);
+    await userProvider.getOtherUserFollowingsNumber(widget.userId);
+    setState(() {
+      _loading = false;
     });
   }
 
-  _getUserInfo(UserProvider userProvider, String userMobileNo) async {
-    await userProvider.getSpecificUserInfo(userMobileNo).then((value) {
+  void _onRefresh(PostProvider postProvider, UserProvider userProvider) async {
+    await postProvider.getOtherUserPosts(widget.userId);
+    await postProvider.getOtherUserAnimalsNumber(widget.userId).then((value) {
       setState(() {
-        _userInfo = userProvider.specificUserMap;
-        _address = _userInfo['address']!;
-        _profileImageLink = _userInfo['profileImageLink']!;
+        _totalAnimals = postProvider.otherUserAnimalNumber;
       });
     });
+    await userProvider.getOtherUserFollowersNumber(widget.userId).then((value) {
+      setState(() {
+        _totalFollowers = userProvider.otherUserFollower;
+      });
+    });
+    await userProvider
+        .getOtherUserFollowingsNumber(widget.userId)
+        .then((value) {
+      _totalFollowing = userProvider.otherUserFollowing;
+    });
+    _refreshController.refreshCompleted();
   }
 
-  _getNumberOfFollowers(AnimalProvider animalProvider) async {
-    await animalProvider.getUserFollowersNumber(userMobileNo).then((value) {
-      setState(() {
-        _numberOfFollowers = animalProvider.userFollowersNumber;
-      });
-    });
+  void _onLoading(PostProvider postProvider) async {
+    await Future.delayed(Duration(milliseconds: 1000));
+    await postProvider.getOtherUserMorePosts(widget.userId);
+
+    _refreshController.loadComplete();
   }
 
-  _getNumberOfAnimals(AnimalProvider animalProvider) async {
-    await animalProvider.getUserAnimalsNumber(userMobileNo).then((value) {
-      setState(() {
-        _numberOfAnimals = animalProvider.userAnimalNumber;
-      });
-    });
+  Future<bool> _onBackPress(PostProvider postProvider) async {
+    await postProvider.makeOtherUserPostListEmpty();
+    Navigator.pop(context);
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          username,
-          style: TextStyle(
-            color: Colors.black,
-          ),
-        ),
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
+    return WillPopScope(
+      onWillPop: () => _onBackPress(postProvider),
+      child: Scaffold(
         backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+            ),
+            onPressed: () async {
+              await postProvider.makeOtherUserPostListEmpty();
+              Navigator.pop(context);
+            },
           ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          title: Text(
+            'Profile',
+            style: TextStyle(color: Colors.black),
+          ),
+          elevation: 0.0,
         ),
-        elevation: 0.0,
+        body: _bodyUI(context),
       ),
-      body: _bodyUI(context),
     );
   }
 
   Widget _bodyUI(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    final UserProvider userProvider = Provider.of<UserProvider>(context);
     final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
-    if (count == 0) _customInit(userProvider, animalProvider);
-    return SingleChildScrollView(
-      child: Container(
-        width: size.width,
-        padding:
-            EdgeInsets.only(left: size.width * .04, right: size.width * .04),
-        child: Column(
-          children: [
-            SizedBox(height: size.width * .05),
-            Container(
+    final UserProvider userProvider = Provider.of<UserProvider>(context);
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
+    if (_count == 0) _customInit(animalProvider, userProvider, postProvider);
+
+    return SmartRefresher(
+      enablePullDown: true,
+      enablePullUp: true,
+      header: WaterDropHeader(),
+      controller: _refreshController,
+      onRefresh: () => _onRefresh(postProvider, userProvider),
+      onLoading: () => _onLoading(postProvider),
+      child: ListView(
+        children: [
+          SizedBox(height: size.width * .06),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                height: size.width * .5,
+                width: size.width * .5,
+                child: CircleAvatar(
+                    backgroundColor: Colors.deepOrange,
+                    child: CircleAvatar(
+                      radius: size.width * .245,
+                      backgroundColor: Colors.white,
+                      backgroundImage: userProfileImage == ''
+                          ? AssetImage('assets/profile_image_demo.png')
+                          : NetworkImage(userProfileImage) as ImageProvider,
+                    )),
+              ),
+            ],
+          ),
+          SizedBox(height: size.width * .02),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                username,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: size.width * .07,
+                  fontFamily: 'MateSC',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: size.width * .1,
+              ),
+              Text(
+                address,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: size.width * .032,
+                ),
+              ),
+            ],
+          ),
+          Container(
               width: size.width,
-              child: Stack(
-                children: [
-                  Center(
-                    child: Container(
-                      height: size.width * .5,
-                      width: size.width * .5,
-                      child: CircleAvatar(
-                          backgroundColor: Colors.deepOrange,
-                          child: CircleAvatar(
-                              radius: size.width * .245,
-                              backgroundColor: Colors.white,
-                              backgroundImage: _profileImageLink == ''
-                                  ? AssetImage('assets/profile_image_demo.png')
-                                  : NetworkImage(_profileImageLink)
-                                      as ImageProvider)),
-                    ),
-                  ),
-                  Positioned(
-                      right: 10,
-                      top: 10,
-                      child: IconButton(
-                          onPressed: () {},
-                          icon: Icon(Icons.chat, size: size.width * .06)))
-                ],
-              ),
-            ),
-            SizedBox(
-              height: size.width * .04,
-            ),
-            Text(
-              username,
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: size.width * .07,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              _address,
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: size.width * .04,
-              ),
-            ),
-            SizedBox(height: size.width * .04),
-            Container(
-                width: size.width,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(size.width * .04, size.width * .01,
+                    size.width * .04, size.width * .01),
                 child: Card(
                   color: Colors.white,
                   elevation: size.width * .01,
                   child: Padding(
-                    padding: EdgeInsets.all(size.width * .045),
+                    padding: EdgeInsets.all(size.width * .04),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         Column(
                           children: [
                             Text(
-                              _numberOfAnimals.toString(),
+                              postProvider.otherUserAnimalNumber.toString(),
                               style: TextStyle(
                                 color: Colors.black,
                                 fontSize: size.width * .075,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(height: size.width * .02),
                             Text(
                               'Animals',
                               style: TextStyle(
@@ -188,16 +221,35 @@ class _OtherUserProfileState extends State<OtherUserProfile> {
                         Column(
                           children: [
                             Text(
-                              _numberOfFollowers.toString(),
+                              userProvider.otherUserFollower.toString(),
                               style: TextStyle(
                                 color: Colors.black,
                                 fontSize: size.width * .075,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(height: size.width * .02),
                             Text(
                               'Followers',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: size.width * .032,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              userProvider.otherUserFollowing.toString(),
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: size.width * .075,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Following',
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: size.width * .032,
@@ -209,115 +261,30 @@ class _OtherUserProfileState extends State<OtherUserProfile> {
                       ],
                     ),
                   ),
-                )),
-            SizedBox(height: size.width * .04),
-            ListTile(
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => UserAnimals(
-                            userMobileNo: userMobileNo, username: username)));
-              },
-              leading: Icon(
-                FontAwesomeIcons.paw,
-                color: Colors.deepOrange,
-              ),
-              title: Text(
-                'Animals',
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: size.width * .04,
-                    fontWeight: FontWeight.w600),
-              ),
-              trailing: Icon(Icons.chevron_right, color: Colors.deepOrange),
-            ),
-            Container(
-              width: size.width,
-              child: Divider(
-                color: Colors.grey,
-                thickness: size.width * .001,
-              ),
-            ),
-            ListTile(
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => UserSharedAnimals(
-                            userMobileNo: userMobileNo, username: username)));
-              },
-              leading: Icon(
-                FontAwesomeIcons.shareAlt,
-                color: Colors.deepOrange,
-              ),
-              title: Text(
-                'Shared animals',
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: size.width * .04,
-                    fontWeight: FontWeight.w600),
-              ),
-              trailing: Icon(Icons.chevron_right, color: Colors.deepOrange),
-            ),
-            Container(
-              width: size.width,
-              child: Divider(
-                color: Colors.grey,
-                thickness: size.width * .001,
-              ),
-            ),
-            ListTile(
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => UserFollowers(
-                            userMobileNo: userMobileNo, username: username)));
-              },
-              leading: Icon(
-                FontAwesomeIcons.userFriends,
-                color: Colors.deepOrange,
-              ),
-              title: Text(
-                'Followers',
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: size.width * .04,
-                    fontWeight: FontWeight.w600),
-              ),
-              trailing: Icon(Icons.chevron_right, color: Colors.deepOrange),
-            ),
-            Container(
-              width: size.width,
-              child: Divider(
-                color: Colors.grey,
-                thickness: size.width * .001,
-              ),
-            ),
-            ListTile(
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => UserFollowing(
-                            userMobileNo: userMobileNo, username: username)));
-              },
-              leading: Icon(
-                FontAwesomeIcons.users,
-                color: Colors.deepOrange,
-              ),
-              title: Text(
-                'Following',
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: size.width * .04,
-                    fontWeight: FontWeight.w600),
-              ),
-              trailing: Icon(Icons.chevron_right, color: Colors.deepOrange),
-            ),
-          ],
-        ),
+                ),
+              )),
+          SizedBox(
+            height: size.width * .04,
+          ),
+          Container(
+            width: size.width,
+            child: _loading
+                ? Center(child: CircularProgressIndicator())
+                : postProvider.otherUserPosts.isEmpty
+                    ? Center(child: Text('No post available'))
+                    : ListView.builder(
+                        physics: ClampingScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: postProvider.otherUserPosts.length,
+                        itemBuilder: (context, index) {
+                          return OtherUserProfilePost(
+                            index: index,
+                            post: postProvider.otherUserPosts[index],
+                          );
+                        },
+                      ),
+          )
+        ],
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -8,7 +9,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:pet_lover/custom_classes/DatabaseManager.dart';
 import 'package:pet_lover/custom_classes/TextFieldValidation.dart';
 import 'package:pet_lover/custom_classes/progress_dialog.dart';
+import 'package:pet_lover/custom_classes/toast.dart';
 import 'package:pet_lover/provider/animalProvider.dart';
+import 'package:pet_lover/provider/postProvider.dart';
+import 'package:pet_lover/provider/userProvider.dart';
+import 'package:pet_lover/sub_screens/groupDetail.dart';
+import 'package:pet_lover/sub_screens/groups.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -18,46 +24,71 @@ import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 
 class GroupPostAdd extends StatefulWidget {
   String groupId;
-  GroupPostAdd({Key? key, required this.groupId}) : super(key: key);
+  String postId;
+
+  GroupPostAdd({required this.groupId, required this.postId});
 
   @override
-  _GroupPostAddState createState() => _GroupPostAddState(groupId);
+  _GroupPostAddState createState() => _GroupPostAddState();
 }
 
 class _GroupPostAddState extends State<GroupPostAdd> {
-  String groupId;
-  _GroupPostAddState(this.groupId);
   TextEditingController _statusController = TextEditingController();
   TextEditingController _petNameController = TextEditingController();
   TextEditingController _colorController = TextEditingController();
   TextEditingController _genusController = TextEditingController();
   TextEditingController _genderController = TextEditingController();
   TextEditingController _ageController = TextEditingController();
-
   File? fileMedia;
-
   File? _image;
-  String? animalsImageLink;
-  String? animalsVideoLink;
+  String? postImageLink;
+  String? postVideoLink;
   String? imageLink;
   String? _currentMobileNo;
   String? _username;
   String? _userProfileImage;
   String dateData = '';
+  String _photo = '';
+  String _video = '';
   String? petNameErrorText;
   String? colorErrorText;
   String? genusErrorText;
   String? genderErrorText;
   String? ageErrorText;
-
   bool profileImageUploadVisibility = false;
   VideoPlayerController? controller;
+  int _count = 0;
+  bool _imageVideoContainerVisibility = false;
+  String _totalComments = '';
+  String _totalFollowers = '';
+  String _totalShares = '';
 
-  Future<String?> getCurrentMobileNo() async {
-    final prefs = await SharedPreferences.getInstance();
-    _currentMobileNo = prefs.getString('mobileNo');
-    print('Current Mobile no is $_currentMobileNo');
-    return _currentMobileNo;
+  Future _customInit(UserProvider userProvider) async {
+    setState(() {
+      _count++;
+    });
+
+    if (widget.postId != '') {
+      _getPostInfo(widget.postId);
+    }
+  }
+
+  _getPostInfo(String postId) async {
+    await FirebaseFirestore.instance
+        .collection('allPosts')
+        .doc(postId)
+        .get()
+        .then((snapshot) {
+      setState(() {
+        _photo = snapshot['photo'];
+        _video = snapshot['video'];
+        _statusController.text = snapshot['status'];
+        _totalComments = snapshot['totalComments'];
+        _totalFollowers = snapshot['totalFollowers'];
+        _totalShares = snapshot['totalShares'];
+        _imageVideoContainerVisibility = true;
+      });
+    });
   }
 
   // @override
@@ -78,7 +109,7 @@ class _GroupPostAddState extends State<GroupPostAdd> {
         title: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Text(
-            "Group Post",
+            "Create group post",
             style: TextStyle(
               color: Colors.black,
               fontSize: size.width * .05,
@@ -95,345 +126,209 @@ class _GroupPostAddState extends State<GroupPostAdd> {
           },
         ),
       ),
-      body: bodyUI(context),
+      body: _bodyUI(context),
     );
   }
 
-  Widget bodyUI(BuildContext context) {
+  Widget _bodyUI(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
-    return Container(
-      width: size.width,
-      height: size.height,
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.amber.shade900,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(5),
+    final UserProvider userProvider = Provider.of<UserProvider>(context);
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
+    if (_count == 0) _customInit(userProvider);
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(
+              left: size.width * .04,
+              right: size.width * .04,
+              top: size.width * .04,
+            ),
+            child: Container(
+              width: size.width,
+              height: size.width * .4,
+              padding: EdgeInsets.all(size.width * .03),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(size.width * .04),
+              ),
+              child: TextFormField(
+                controller: _statusController,
+                decoration: InputDecoration(
+                  hintText: 'Write someting...',
+                  hintStyle: TextStyle(fontSize: size.width * .04),
+                  focusedBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
                 ),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: TextField(
-                        controller: _statusController,
-                        decoration: InputDecoration(
-                            hintText: 'Write something Here...'),
-                        maxLines: 5,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          ElevatedButton(
-                            //video pick button
-                            onPressed: () async {
-                              setState(() {
-                                String source = 'Video';
+                maxLines: 10,
+              ),
+            ),
+          ),
+          Padding(
+            padding:
+                EdgeInsets.only(left: size.width * .04, top: size.width * .02),
+            child: Row(
+              children: [
+                TextButton(
+                    style: ButtonStyle(
+                        shape:
+                            MaterialStateProperty.all<RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ))),
+                    //video pick button
+                    onPressed: () async {
+                      setState(() {
+                        String source = 'Video';
 
-                                _cameraGalleryBottomSheet(context, source);
-                              });
-                            },
-                            child: Icon(
-                              Icons.video_camera_front,
-                              color: Colors.white,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              primary: Colors.grey,
-                            ),
-                          ),
-                          SizedBox(
-                            width: size.width * .04,
-                          ),
-                          ElevatedButton(
-                            //image pick button
-                            onPressed: () async {
-                              setState(() {
-                                String source = 'Photo';
-                                _cameraGalleryBottomSheet(context, source);
-                              });
-                            },
-                            child: Icon(
-                              Icons.photo_album,
-                              color: Colors.white,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              primary: Colors.grey,
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Visibility(
-              visible: _image != null || fileMedia != null,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.amber.shade900,
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: <Widget>[
-                        Container(
-                          //container for image or video loading
-                          width: size.width,
-                          height: size.width * .7,
-                          decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300)),
-                          child: Center(
-                            child: _image != null || fileMedia != null
-                                ? Container(
-                                    width: size.width,
-                                    height: size.width * .7,
-                                    color: Colors.grey.shade300,
-                                    alignment: Alignment.topCenter,
-                                    child: _image != null
-                                        ? Image.file(_image!, fit: BoxFit.fill)
-                                        : VideoWidget(fileMedia!))
-                                : Text(
-                                    'No image or video selected!',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: size.width * .05,
-                                    ),
-                                  ),
-                          ),
+                        _cameraGalleryBottomSheet(context, source);
+                      });
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.video_camera_front,
+                          color: Colors.deepOrange,
                         ),
+                        SizedBox(
+                          width: size.width * .03,
+                        ),
+                        Text(
+                          'Video',
+                          style: TextStyle(
+                              color: Colors.deepOrange,
+                              fontSize: size.width * .038),
+                        )
                       ],
-                    ),
+                    )),
+                SizedBox(
+                  width: size.width * .02,
+                ),
+                Container(
+                  height: size.width * .06,
+                  child: VerticalDivider(
+                    thickness: size.width * .002,
+                    color: Colors.black,
                   ),
                 ),
-              ),
+                SizedBox(
+                  width: size.width * .02,
+                ),
+                TextButton(
+                    style: ButtonStyle(
+                        shape:
+                            MaterialStateProperty.all<RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ))),
+                    //image pick button
+                    onPressed: () async {
+                      setState(() {
+                        String source = 'Photo';
+                        _cameraGalleryBottomSheet(context, source);
+                      });
+
+                      //   print(_file);
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.photo_camera,
+                          color: Colors.deepOrange,
+                        ),
+                        SizedBox(
+                          width: size.width * .03,
+                        ),
+                        Text(
+                          'Photo',
+                          style: TextStyle(
+                              color: Colors.deepOrange,
+                              fontSize: size.width * .038),
+                        )
+                      ],
+                    ))
+              ],
             ),
-            SizedBox(
-              height: size.width * .02,
+          ),
+          Visibility(
+            visible: _imageVideoContainerVisibility,
+            child: Container(
+              //container for image or video loading
+              width: size.width,
+              height: size.width * .7,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  border: Border.all(color: Colors.grey.shade200)),
+              child: Center(
+                  child: _photo == '' && _video == ''
+                      ? _image != null || fileMedia != null
+                          ? Container(
+                              width: size.width,
+                              height: size.width * .7,
+                              color: Colors.grey.shade100,
+                              alignment: Alignment.topCenter,
+                              child: _image != null
+                                  ? Image.file(_image!, fit: BoxFit.fill)
+                                  : VideoWidget(fileMedia!))
+                          : Text(
+                              'No image or video selected!',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: size.width * .05,
+                              ),
+                            )
+                      : _video == ''
+                          ? Image.network(_photo)
+                          : Image.network(_video)),
             ),
-            Visibility(
-              visible: _image != null || fileMedia != null,
-              child: Container(
-                width: size.width,
-                padding: EdgeInsets.fromLTRB(size.width * .04, size.width * .06,
-                    size.width * .04, size.width * .04),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Animal Details',
-                      style: TextStyle(
-                          color: Colors.black,
-                          fontSize: size.width * .05,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: size.width * .05),
-                    Text(
-                      'Pet name',
-                      style: TextStyle(fontSize: size.width * .042),
-                    ),
-                    SizedBox(
-                      height: size.width * .02,
-                    ),
-                    Container(
-                      //textformfield for pet name input
-                      width: size.width,
-                      padding: EdgeInsets.only(
-                          left: size.width * .04,
-                          right: size.width * .04,
-                          top: size.width * .02,
-                          bottom: size.width * .02),
-                      decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          border: Border.all(color: Colors.grey)),
-                      child: textFormFieldBuilder(TextInputType.text, 1,
-                          _petNameController, petNameErrorText),
-                    ),
-                    SizedBox(
-                      height: size.width * .04,
-                    ),
-                    Text(
-                      'Color',
-                      style: TextStyle(fontSize: size.width * .042),
-                    ),
-                    SizedBox(
-                      height: size.width * .02,
-                    ),
-                    Container(
-                      //textformfield for pet color input
-                      width: size.width,
-                      padding: EdgeInsets.only(
-                          left: size.width * .04,
-                          right: size.width * .04,
-                          top: size.width * .02,
-                          bottom: size.width * .02),
-                      decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          border: Border.all(color: Colors.grey)),
-                      child: textFormFieldBuilder(TextInputType.text, 1,
-                          _colorController, colorErrorText),
-                    ),
-                    SizedBox(
-                      height: size.width * .04,
-                    ),
-                    Text(
-                      'Genus',
-                      style: TextStyle(fontSize: size.width * .042),
-                    ),
-                    SizedBox(
-                      height: size.width * .02,
-                    ),
-                    Container(
-                      //textformfield for genus input
-                      width: size.width,
-                      padding: EdgeInsets.only(
-                          left: size.width * .04,
-                          right: size.width * .04,
-                          top: size.width * .02,
-                          bottom: size.width * .02),
-                      decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          border: Border.all(color: Colors.grey)),
-                      child: textFormFieldBuilder(TextInputType.text, 1,
-                          _genusController, genusErrorText),
-                    ),
-                    SizedBox(
-                      height: size.width * .04,
-                    ),
-                    Text(
-                      'Gender',
-                      style: TextStyle(fontSize: size.width * .042),
-                    ),
-                    SizedBox(
-                      height: size.width * .02,
-                    ),
-                    Container(
-                      //textformfield for gender input
-                      width: size.width,
-                      padding: EdgeInsets.only(
-                          left: size.width * .04,
-                          right: size.width * .04,
-                          top: size.width * .02,
-                          bottom: size.width * .02),
-                      decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          border: Border.all(color: Colors.grey)),
-                      child: textFormFieldBuilder(TextInputType.text, 1,
-                          _genderController, genderErrorText),
-                    ),
-                    SizedBox(
-                      height: size.width * .04,
-                    ),
-                    Text(
-                      'Age',
-                      style: TextStyle(fontSize: size.width * .042),
-                    ),
-                    SizedBox(
-                      height: size.width * .02,
-                    ),
-                    Container(
-                      //textformfield for pet age input
-                      width: size.width,
-                      padding: EdgeInsets.only(
-                          left: size.width * .04,
-                          right: size.width * .04,
-                          top: size.width * .02,
-                          bottom: size.width * .02),
-                      decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          border: Border.all(color: Colors.grey)),
-                      child: textFormFieldBuilder(
-                          TextInputType.text, 1, _ageController, ageErrorText),
-                    ),
-                    SizedBox(
-                      height: size.width * .04,
-                    ),
-                  ],
+          ),
+          Container(
+            width: size.width,
+            height: size.width * .18,
+            padding: EdgeInsets.fromLTRB(
+                size.width * .04, 20.0, size.width * .04, 0.0),
+            child: ElevatedButton(
+              onPressed: () {
+                String postId = Uuid().v4();
+                uploadData(postId, userProvider, postProvider);
+              },
+              child: Text(
+                'POST',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: size.width * .04,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              style: ButtonStyle(
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                      RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10.0),
+              ))),
             ),
-            Padding(
-              padding: const EdgeInsets.only(right: 15),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ElevatedButton(
-                      //Cancel button
-                      onPressed: () {},
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                            color: Colors.white, fontSize: size.width * .038),
-                      )),
-                  SizedBox(
-                    width: size.width * .04,
-                  ),
-                  ElevatedButton(
-                      //save button
-                      onPressed: () {
-                        setState(() {
-                          showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (context) {
-                                return ProgressDialog(
-                                    message:
-                                        'Please wait...Uploading image and saving data.');
-                              });
-                          _uploadData(animalProvider);
-                        });
-                      },
-                      child: Text(
-                        'Save',
-                        style: TextStyle(
-                            color: Colors.white, fontSize: size.width * .038),
-                      ))
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+          SizedBox(width: size.width * .04),
+        ],
       ),
     );
   }
 
-  _uploadData(AnimalProvider animalProvider) async {
-    _currentMobileNo = await getCurrentMobileNo();
-    String id = Uuid().v4();
+  Future<void> uploadData(String postId, UserProvider userProvider,
+      PostProvider postProvider) async {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return ProgressDialog(message: 'Please wait...');
+        });
 
-    _username =
-        await DatabaseManager().getUserInfo(_currentMobileNo!, 'username');
-
-    _userProfileImage = await DatabaseManager()
-        .getUserInfo(_currentMobileNo!, 'profileImageLink');
-    await uploadData(
-        id, _currentMobileNo!, _username!, _userProfileImage!, animalProvider);
-  }
-
-  Future<void> uploadData(String uuid, String _currentMobileNo, String username,
-      String userProfileImage, AnimalProvider animalProvider) async {
     if (_image != null || fileMedia != null) {
       firebase_storage.Reference storageReference = firebase_storage
           .FirebaseStorage.instance
           .ref()
-          .child('groupPosts')
-          .child(uuid);
+          .child('posts')
+          .child(postId);
 
       if (_image != null) {
         firebase_storage.UploadTask storageUploadTask =
@@ -445,10 +340,13 @@ class _GroupPostAddState extends State<GroupPostAdd> {
           taskSnapshot.ref.getDownloadURL().then((newImageDownloadUrl) {
             final downloadUrl = newImageDownloadUrl;
             setState(() {
-              animalsImageLink = downloadUrl;
+              postImageLink = downloadUrl;
             });
-            _submitData(uuid, _currentMobileNo, username, userProfileImage,
-                animalProvider);
+            if (widget.postId == '') {
+              _createPost(userProvider, postId, postProvider);
+            } else {
+              _UpdatePost(userProvider, widget.postId, postProvider);
+            }
           });
         });
       } else {
@@ -461,70 +359,124 @@ class _GroupPostAddState extends State<GroupPostAdd> {
           taskSnapshot.ref.getDownloadURL().then((newImageDownloadUrl) {
             final downloadUrl = newImageDownloadUrl;
             setState(() {
-              animalsVideoLink = downloadUrl;
+              postVideoLink = downloadUrl;
             });
-            _submitData(uuid, _currentMobileNo, username, userProfileImage,
-                animalProvider);
+            if (widget.postId == '') {
+              _createPost(userProvider, postId, postProvider);
+            } else {
+              _UpdatePost(userProvider, widget.postId, postProvider);
+            }
           });
         });
       }
-    } else {
-      _submitData(
-          uuid, _currentMobileNo, username, userProfileImage, animalProvider);
-      print('Please Select File');
+    } else if (_image == null && fileMedia == null) {
+      setState(() {
+        postImageLink = _photo;
+        postVideoLink = _video;
+        if (widget.postId == '') {
+          _createPost(userProvider, postId, postProvider);
+        } else {
+          _UpdatePost(userProvider, widget.postId, postProvider);
+        }
+      });
     }
   }
 
-  Future<void> _submitData(
-      String uuid,
-      String _currentMobileNo,
-      String username,
-      String userProfileImage,
-      AnimalProvider animalProvider) async {
+  void _UpdatePost(UserProvider userProvider, String postId,
+      PostProvider postProvider) async {
     String date = DateTime.now().millisecondsSinceEpoch.toString();
-    Map<String, String> map = {
-      'petName': _petNameController.text,
-      'username': username,
-      'userProfileImage': userProfileImage,
-      'color': _colorController.text,
-      'genus': _genusController.text,
-      'gender': _genderController.text,
-      'age': _ageController.text,
-      'mobile': _currentMobileNo,
-      'photo': _image != null ? animalsImageLink! : '',
-      'video': fileMedia != null ? animalsVideoLink! : '',
+
+    await FirebaseFirestore.instance
+        .collection('Groups')
+        .doc(widget.groupId)
+        .collection('groupPosts')
+        .doc(postId)
+        .update({
+      'date': date,
+    });
+
+    await FirebaseFirestore.instance.collection('allPosts').doc(postId).update({
       'date': date,
       'status': _statusController.text,
-      'totalFollowings': '0',
-      'totalComments': '0',
-      'totalShares': '0',
-      'id': uuid,
-      'groupId': groupId
-    };
-
-    await animalProvider.addGroupPost(map, groupId).then((value) {
-      _emptyFildCreator();
-      _showSnackBar(context);
+      'photo': _image != null ? postImageLink : _photo,
+      'video': fileMedia != null ? postVideoLink : _video,
+    }).then((value) async {
+      await postProvider.getAllPosts();
+      await postProvider.getAllGroupPosts(widget.groupId);
+      await postProvider.getUserPosts(userProvider.currentUserMobile);
+      _emptyFieldCreator();
       Navigator.pop(context);
+      Toast().showToast(context, 'Post updated successfully.');
     });
   }
 
-  _showSnackBar(BuildContext context) async {
-    final scaffold = ScaffoldMessenger.of(context);
-    scaffold.showSnackBar(
-      SnackBar(content: Text('Group Post Added Successfully')),
-    );
+  void _createPost(UserProvider userProvider, String postId,
+      PostProvider postProvider) async {
+    String date = DateTime.now().millisecondsSinceEpoch.toString();
+    Map<String, String> postMap = {
+      'postId': postId,
+      'postOwnerId': userProvider.currentUserMap['mobileNo'],
+      'postOwnerMobileNo': userProvider.currentUserMap['mobileNo'],
+      'postOwnerName': userProvider.currentUserMap['username'],
+      'postOwnerImage': userProvider.currentUserMap['profileImageLink'],
+      'date': date,
+      'status': _statusController.text,
+      'photo': _image != null ? postImageLink! : '',
+      'video': fileMedia != null ? postVideoLink! : '',
+      'animalToken': '',
+      'animalName': '',
+      'animalColor': '',
+      'animalAge': '',
+      'animalGender': '',
+      'animalGenus': '',
+      'totalFollowers': '0',
+      'totalComments': '0',
+      'totalShares': '0',
+      'groupId': widget.groupId,
+      'shareId': ''
+    };
+
+    await FirebaseFirestore.instance
+        .collection('Groups')
+        .doc(widget.groupId)
+        .collection('groupPosts')
+        .doc(postId)
+        .set({'date': date, 'postId': postId});
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userProvider.currentUserMap['mobileNo'])
+        .collection('myPosts')
+        .doc(postId)
+        .set({'postId': postId, 'date': date});
+
+    await FirebaseFirestore.instance
+        .collection('allPosts')
+        .doc(postId)
+        .set(postMap)
+        .then((value) async {
+      _emptyFieldCreator();
+      await postProvider.getAllGroupPosts(widget.groupId);
+      await postProvider.getAllPosts();
+      Navigator.pop(context);
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => GroupDetail(groupId: widget.groupId)));
+    });
   }
 
-  _emptyFildCreator() {
-    _petNameController.clear();
-    _colorController.clear();
-    _genusController.clear();
-    _genderController.clear();
-    _ageController.clear();
-    _image = null;
-    _statusController.clear();
-    fileMedia = null;
+  _emptyFieldCreator() {
+    setState(() {
+      _petNameController.clear();
+      _colorController.clear();
+      _genusController.clear();
+      _genderController.clear();
+      _ageController.clear();
+      _image = null;
+      _statusController.clear();
+      fileMedia = null;
+    });
   }
 
   Widget buildVideo() => Stack(
@@ -579,7 +531,7 @@ class _GroupPostAddState extends State<GroupPostAdd> {
         context: context,
         builder: (context) {
           return Container(
-            height: size.width * .3,
+            height: size.height * .2,
             color: Color(0xff737373),
             child: Container(
               decoration: BoxDecoration(
@@ -596,7 +548,9 @@ class _GroupPostAddState extends State<GroupPostAdd> {
                     title: Text('Camera'),
                     onTap: () {
                       source == 'Photo' ? _getCameraImage() : _getCameraVideo();
-
+                      setState(() {
+                        _imageVideoContainerVisibility = true;
+                      });
                       Navigator.pop(context);
                       controller != null ? controller!.dispose() : true;
                     },
@@ -610,6 +564,9 @@ class _GroupPostAddState extends State<GroupPostAdd> {
                       source == 'Photo'
                           ? _getGalleryImage()
                           : _getGalleryVideo();
+                      setState(() {
+                        _imageVideoContainerVisibility = true;
+                      });
                       Navigator.pop(context);
                       controller != null ? controller!.dispose() : true;
                     },
@@ -628,6 +585,8 @@ class _GroupPostAddState extends State<GroupPostAdd> {
       this.fileMedia = null;
 
       this._image = null;
+      _photo = '';
+      _video = '';
     });
     final _originalImage =
         await ImagePicker().getImage(source: ImageSource.gallery);
@@ -651,6 +610,8 @@ class _GroupPostAddState extends State<GroupPostAdd> {
       this.fileMedia = null;
       //   controller!.dispose();
       _image = null;
+      _photo = '';
+      _video = '';
     });
     final file = await pickVideoFile();
     controller = VideoPlayerController.file(file)
@@ -670,6 +631,8 @@ class _GroupPostAddState extends State<GroupPostAdd> {
     setState(() {
       //  controller!.dispose();
       this._image = null;
+      _photo = '';
+      _video = '';
     });
     final _originalImage =
         await ImagePicker().getImage(source: ImageSource.camera);
@@ -693,6 +656,8 @@ class _GroupPostAddState extends State<GroupPostAdd> {
       this.fileMedia = null;
 
       _image = null;
+      _photo = '';
+      _video = '';
     });
     final getMedia = ImagePicker().getVideo;
     final media = await getMedia(source: ImageSource.camera);
@@ -706,7 +671,6 @@ class _GroupPostAddState extends State<GroupPostAdd> {
     }
   }
 
-  //textformfile demo design
   Widget textFormFieldBuilder(TextInputType keyboardType, int maxLine,
       TextEditingController textEditingController, String? errorText) {
     return TextFormField(

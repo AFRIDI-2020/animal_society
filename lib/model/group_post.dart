@@ -18,22 +18,21 @@ class GroupPost {
   String? status;
 
   GroupPost(
-      {this.userProfileImage,
-      this.username,
-      this.mobile,
-      this.id,
-      this.photo,
-      this.video,
-      this.petName,
-      this.color,
-      this.age,
-      this.gender,
-      this.genus,
-      this.totalComments,
-      this.totalFollowings,
-      this.totalShares,
-      this.date,
-      this.groupId,
-      this.status
-      });
+      {required this.userProfileImage,
+      required this.username,
+      required this.mobile,
+      required this.id,
+      required this.photo,
+      required this.video,
+      required this.petName,
+      required this.color,
+      required this.age,
+      required this.gender,
+      required this.genus,
+      required this.totalComments,
+      required this.totalFollowings,
+      required this.totalShares,
+      required this.date,
+      required this.groupId,
+      required this.status});
 }

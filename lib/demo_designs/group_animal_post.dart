@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 class GroupAnimalPost extends StatefulWidget {
+  int index;
   String profileImageLink;
   String username;
   String mobile;
@@ -28,6 +29,7 @@ class GroupAnimalPost extends StatefulWidget {
   String groupId;
   GroupAnimalPost({
     Key? key,
+    required this.index,
     required this.profileImageLink,
     required this.username,
     required this.mobile,
@@ -50,6 +52,7 @@ class GroupAnimalPost extends StatefulWidget {
 
   @override
   _GroupAnimalPostState createState() => _GroupAnimalPostState(
+        index,
         profileImageLink,
         username,
         mobile,
@@ -72,6 +75,7 @@ class GroupAnimalPost extends StatefulWidget {
 }
 
 class _GroupAnimalPostState extends State<GroupAnimalPost> {
+  int index;
   String profileImageLink;
   String username;
   String mobile;
@@ -92,6 +96,7 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
   String groupId;
 
   _GroupAnimalPostState(
+    this.index,
     this.profileImageLink,
     this.username,
     this.mobile,
@@ -154,7 +159,7 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
       Map userInfo = userProvider.currentUserMap;
       _currentMobileNo = userInfo['mobileNo'];
       _username = userInfo['username'];
-      _currentImage=userInfo['profileImageLink'];
+      _currentImage = userInfo['profileImageLink'];
     });
 
     _getCommentsNumber(animalProvider, petId);
@@ -163,9 +168,17 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
     _isFollowerOrNot(animalProvider, _currentMobileNo!);
   }
 
-  _addAnimalOwnerInMyFollowings(AnimalProvider animalProvider,
-      String currentMobileNo, String mobileNo, String followingName,String followerName,String followingImage,String followerImage) async {
-    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,followerName,followingImage,followerImage);
+  _addAnimalOwnerInMyFollowings(
+      AnimalProvider animalProvider,
+      String currentMobileNo,
+      String mobileNo,
+      String followingName,
+      String followerName,
+      String followingImage,
+      String followerImage,
+      UserProvider userProvider) async {
+    await animalProvider.myFollowings(currentMobileNo, mobileNo, followingName,
+        followerName, followingImage, followerImage, userProvider);
   }
 
   _isFollowerOrNot(
@@ -346,7 +359,14 @@ class _GroupAnimalPostState extends State<GroupAnimalPost> {
                         petId, _currentMobileNo!, _username!);
                     _getFollowersNumber(animalProvider, petId);
                     _addAnimalOwnerInMyFollowings(
-                        animalProvider, _currentMobileNo!, mobile,widget.username, _username!,widget.profileImageLink,_currentImage!);
+                        animalProvider,
+                        _currentMobileNo!,
+                        mobile,
+                        widget.username,
+                        _username!,
+                        widget.profileImageLink,
+                        _currentImage!,
+                        userProvider);
                   }
                   if (_isFollowed == false) {
                     _getFollowersNumber(animalProvider, petId);

@@ -1,16 +1,16 @@
 class Comment {
-  String? id;
-  String? animalOwnerMobileNo;
+  String? commentId;
+  String? postOwnerId;
   String? currentUserMobileNo;
   String? comment;
   String? date;
-  String? totalLikes;
+  String? postId;
 
   Comment(
-      {this.id,
+      {this.commentId,
       this.comment,
-      this.animalOwnerMobileNo,
+      this.postOwnerId,
       this.currentUserMobileNo,
       this.date,
-      this.totalLikes});
+      required this.postId});
 }

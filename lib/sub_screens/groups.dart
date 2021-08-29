@@ -46,41 +46,49 @@ class _GroupsState extends State<Groups> {
     });
   }
 
+  Future<bool> _onBackPressed() async {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => Home()));
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          'Groups',
-          style: TextStyle(
-            color: Colors.black,
-          ),
-        ),
+    return WillPopScope(
+      onWillPop: _onBackPressed,
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.black,
+        appBar: AppBar(
+          title: Text(
+            'Groups',
+            style: TextStyle(
+              color: Colors.black,
+            ),
           ),
+          backgroundColor: Colors.white,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (context) => Home()));
+            },
+          ),
+          elevation: 0.0,
+        ),
+        floatingActionButton: FloatingActionButton(
           onPressed: () {
             Navigator.push(
-                context, MaterialPageRoute(builder: (context) => Home()));
+                context,
+                MaterialPageRoute(
+                    builder: (context) => CreateGroup(groupId: '')));
           },
+          child: Icon(Icons.add),
         ),
-        elevation: 0.0,
+        body: _bodyUI(context),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => CreateGroup(groupId: '')));
-        },
-        child: Icon(Icons.add),
-      ),
-      body: _bodyUI(context),
     );
   }
 

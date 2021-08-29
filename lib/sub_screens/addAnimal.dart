@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -8,11 +10,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:pet_lover/custom_classes/DatabaseManager.dart';
 import 'package:pet_lover/custom_classes/TextFieldValidation.dart';
 import 'package:pet_lover/custom_classes/progress_dialog.dart';
+import 'package:pet_lover/home.dart';
 import 'package:pet_lover/model/animal.dart';
 import 'package:pet_lover/provider/animalProvider.dart';
+import 'package:pet_lover/provider/postProvider.dart';
+import 'package:pet_lover/provider/userProvider.dart';
 import 'package:pet_lover/video_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import 'package:video_player/video_player.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 
@@ -20,23 +26,22 @@ class AddAnimal extends StatefulWidget {
   String petId;
   AddAnimal({Key? key, required this.petId}) : super(key: key);
   @override
-  _AddAnimalState createState() => _AddAnimalState(petId);
+  _AddAnimalState createState() => _AddAnimalState();
 }
 
 class _AddAnimalState extends State<AddAnimal> {
-  String petId;
-  _AddAnimalState(this.petId);
+  String animalToken = '';
+  String postId = '';
   TextEditingController _petNameController = TextEditingController();
   TextEditingController _colorController = TextEditingController();
   TextEditingController _genusController = TextEditingController();
-  // TextEditingController _genderController = TextEditingController();
   TextEditingController _ageController = TextEditingController();
 
   File? fileMedia;
   File? _image;
 
-  String? animalsImageLink;
-  String? animalsVideoLink;
+  String? postImageLink;
+  String? postVideoLink;
   String? imageLink;
   String? _currentMobileNo;
   String? _username;
@@ -53,15 +58,18 @@ class _AddAnimalState extends State<AddAnimal> {
 
   String _choosenValue = 'Male';
   List<String> _groupGender = ['Male', 'Female'];
-  Animal _animal = Animal();
+  Animal _animal = Animal(groupId: '', status: '');
   int _count = 0;
-  String _petName = '';
-  String _petAge = '';
-  String _petColor = '';
-  String _petGender = '';
-  String _petGenus = '';
-  String _petPhoto = '';
-  String _petvideo = '';
+  String _animalName = '';
+  String _animalAge = '';
+  String _animalColor = '';
+  String _animalGender = '';
+  String _animalGenus = '';
+  String _photo = '';
+  String _video = '';
+  String _totalComments = '';
+  String _totalFollowers = '';
+  String _totalShares = '';
 
   Future<String?> getCurrentMobileNo() async {
     final prefs = await SharedPreferences.getInstance();
@@ -70,34 +78,44 @@ class _AddAnimalState extends State<AddAnimal> {
     return _currentMobileNo;
   }
 
-  Future _customInit(AnimalProvider animalProvider) async {
+  Future _customInit(
+      AnimalProvider animalProvider, UserProvider userProvider) async {
     if (this.mounted) {
       setState(() {
         _count++;
       });
-      _getPetInfo(animalProvider);
+      userProvider.getCurrentUserInfo();
+      if (widget.petId != '') {
+        _getPostInfo(widget.petId);
+      }
     }
   }
 
-  _getPetInfo(AnimalProvider animalProvider) async {
-    if (petId != '') {
-      _animal = await animalProvider.getSpecificAnimal(petId);
-      print('name = ${_animal.petName}, id = ${_animal.id}');
+  _getPostInfo(String postId) async {
+    await FirebaseFirestore.instance
+        .collection('allPosts')
+        .doc(postId)
+        .get()
+        .then((snapshot) {
       setState(() {
-        _petName = _animal.petName!;
-        _petAge = _animal.age!;
-        _petColor = _animal.color!;
-        _petGender = _animal.gender!;
-        _petGenus = _animal.genus!;
-        _petNameController.text = _petName;
-        _ageController.text = _petAge;
-        _colorController.text = _petColor;
-        _genusController.text = _petGenus;
-        _choosenValue = _petGender;
-        _petPhoto = _animal.photo!;
-        _petvideo = _animal.video!;
+        _animalName = snapshot['animalName'];
+        _animalAge = snapshot['animalAge'];
+        _animalColor = snapshot['animalColor'];
+        _animalGenus = snapshot['animalGenus'];
+        _animalGender = snapshot['animalGender'];
+        _photo = snapshot['photo'];
+        _video = snapshot['video'];
+        animalToken = snapshot['animalToken'];
+        _petNameController.text = _animalName;
+        _colorController.text = _animalColor;
+        _ageController.text = _animalAge;
+        _genusController.text = _animalGenus;
+        _choosenValue = _animalGender;
+        _totalComments = snapshot['totalComments'];
+        _totalFollowers = snapshot['totalFollowers'];
+        _totalShares = snapshot['totalShares'];
       });
-    }
+    });
   }
 
   @override
@@ -135,7 +153,9 @@ class _AddAnimalState extends State<AddAnimal> {
   Widget bodyUI(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     final AnimalProvider animalProvider = Provider.of<AnimalProvider>(context);
-    if (_count == 0) _customInit(animalProvider);
+    final UserProvider userProvider = Provider.of<UserProvider>(context);
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
+    if (_count == 0) _customInit(animalProvider, userProvider);
     return Container(
       width: size.width,
       height: size.height,
@@ -149,7 +169,7 @@ class _AddAnimalState extends State<AddAnimal> {
               decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300)),
               child: Center(
-                child: _petPhoto == '' && _petvideo == ''
+                child: _photo == '' && _video == ''
                     ? _image != null || fileMedia != null
                         ? Container(
                             width: size.width,
@@ -166,9 +186,9 @@ class _AddAnimalState extends State<AddAnimal> {
                               fontSize: size.width * .05,
                             ),
                           )
-                    : _petvideo == ''
-                        ? Image.network(_petPhoto)
-                        : Image.network(_petvideo),
+                    : _video == ''
+                        ? Image.network(_photo)
+                        : Image.network(_video),
               ),
             ),
             SizedBox(
@@ -414,6 +434,12 @@ class _AddAnimalState extends State<AddAnimal> {
                           //save button
                           onPressed: () {
                             setState(() {
+                              if (widget.petId == '') {
+                                postId = Uuid().v4();
+                              } else {
+                                postId = widget.petId;
+                              }
+
                               if (!TextFieldValidation()
                                   .petNameValidation(_petNameController.text)) {
                                 petNameErrorText = 'What is your pet name?';
@@ -422,16 +448,7 @@ class _AddAnimalState extends State<AddAnimal> {
                                 petNameErrorText = null;
                               }
 
-                              showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (context) {
-                                    return ProgressDialog(
-                                        message:
-                                            'Please wait...Uploading file and saving animal data.');
-                                  });
-
-                              _uploadData(animalProvider);
+                              uploadData(postId, userProvider, postProvider);
                             });
                           },
                           child: Text(
@@ -451,32 +468,22 @@ class _AddAnimalState extends State<AddAnimal> {
     );
   }
 
-  _uploadData(AnimalProvider animalProvider) async {
-    _currentMobileNo = await getCurrentMobileNo();
-    String id = '';
-    if (petId != '') {
-      id = petId;
-    } else {
-      id = _petNameController.text + _currentMobileNo!;
-    }
+  Future<void> uploadData(String postId, UserProvider userProvider,
+      PostProvider postProvider) async {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return ProgressDialog(message: 'Please wait. Saving animal data');
+        });
 
-    _username =
-        await DatabaseManager().getUserInfo(_currentMobileNo!, 'username');
-
-    _userProfileImage = await DatabaseManager()
-        .getUserInfo(_currentMobileNo!, 'profileImageLink');
-    await uploadData(
-        id, _currentMobileNo!, _username!, _userProfileImage!, animalProvider);
-  }
-
-  Future<void> uploadData(String uuid, String _currentMobileNo, String username,
-      String userProfileImage, AnimalProvider animalProvider) async {
     if (_image != null || fileMedia != null) {
+      print('1 running');
       firebase_storage.Reference storageReference = firebase_storage
           .FirebaseStorage.instance
           .ref()
-          .child('Animals')
-          .child(uuid);
+          .child('posts')
+          .child(postId);
 
       if (_image != null) {
         firebase_storage.UploadTask storageUploadTask =
@@ -488,10 +495,13 @@ class _AddAnimalState extends State<AddAnimal> {
           taskSnapshot.ref.getDownloadURL().then((newImageDownloadUrl) {
             final downloadUrl = newImageDownloadUrl;
             setState(() {
-              animalsImageLink = downloadUrl;
+              postImageLink = downloadUrl;
             });
-            _submitData(uuid, _currentMobileNo, username, userProfileImage,
-                animalProvider);
+            if (widget.petId == '') {
+              _createPost(userProvider, postId, postProvider);
+            } else {
+              _UpdatePost(userProvider, widget.petId, postProvider);
+            }
           });
         });
       } else {
@@ -504,98 +514,135 @@ class _AddAnimalState extends State<AddAnimal> {
           taskSnapshot.ref.getDownloadURL().then((newImageDownloadUrl) {
             final downloadUrl = newImageDownloadUrl;
             setState(() {
-              animalsVideoLink = downloadUrl;
+              postVideoLink = downloadUrl;
             });
-            _submitData(uuid, _currentMobileNo, username, userProfileImage,
-                animalProvider);
+            if (widget.petId == '') {
+              _createPost(userProvider, postId, postProvider);
+            } else {
+              _UpdatePost(userProvider, widget.petId, postProvider);
+            }
           });
         });
       }
     } else if ((_image == null && fileMedia == null) &&
-        (_petPhoto != '' || _petvideo != '')) {
-      _updateData(
-          uuid, _currentMobileNo, username, userProfileImage, animalProvider);
-    } else {
-      print('Please Select File');
+        (_photo != '' || _video != '')) {
+      print('2 running');
+      setState(() {
+        postImageLink = _photo;
+        postVideoLink = _video;
+        _UpdatePost(userProvider, postId, postProvider);
+      });
     }
   }
 
-  Future<void> _updateData(
-      String uuid,
-      String _currentMobileNo,
-      String username,
-      String userProfileImage,
-      AnimalProvider animalProvider) async {
+  void _UpdatePost(UserProvider userProvider, String postId,
+      PostProvider postProvider) async {
     String date = DateTime.now().millisecondsSinceEpoch.toString();
-    Map<String, String> map = {
-      'petName': _petNameController.text,
-      'username': username,
-      'userProfileImage': userProfileImage,
-      'color': _colorController.text,
-      'genus': _genusController.text,
-      'gender': _choosenValue,
-      'age': _ageController.text,
-      'mobile': _currentMobileNo,
-      'photo': _petPhoto,
-      'video': _petvideo,
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userProvider.currentUserMobile)
+        .collection('myPosts')
+        .doc(postId)
+        .update({
       'date': date,
-      'totalFollowings': '0',
-      'totalComments': '0',
-      'totalShares': '0',
-      'id': uuid
-    };
-    await DatabaseManager()
-        .UpdateAnimalsData(map, _currentMobileNo)
-        .then((value) async {
-      if (value) {
-        _emptyFildCreator();
-        await animalProvider
-            .getMyAnimalsNumber()
-            .then((value) => Navigator.pop(context));
-      } else {}
+    });
+
+    await FirebaseFirestore.instance.collection('allPosts').doc(postId).update({
+      'postId': postId,
+      'postOwnerId': userProvider.currentUserMap['mobileNo'],
+      'postOwnerMobileNo': userProvider.currentUserMap['mobileNo'],
+      'postOwnerName': userProvider.currentUserMap['username'],
+      'postOwnerImage': userProvider.currentUserMap['profileImageLink'],
+      'date': date,
+      'status': '',
+      'photo': _image != null ? postImageLink : _photo,
+      'video': fileMedia != null ? postVideoLink : _video,
+      'animalToken': animalToken,
+      'animalName': _petNameController.text,
+      'animalColor': _colorController.text,
+      'animalAge': _ageController.text,
+      'animalGender': _choosenValue,
+      'animalGenus': _genusController.text,
+    }).then((value) async {
+      _emptyFieldCreator();
+      await postProvider.getAllPosts();
+      Navigator.pop(context);
+      Navigator.push(context, MaterialPageRoute(builder: (context) => Home()));
     });
   }
 
-  Future<void> _submitData(
-      String uuid,
-      String _currentMobileNo,
-      String username,
-      String userProfileImage,
-      AnimalProvider animalProvider) async {
+  void _createPost(UserProvider userProvider, String postId,
+      PostProvider postProvider) async {
+    if (animalToken == '') {
+      String newAnimalToken = Uuid().v4();
+      animalToken = newAnimalToken.substring(30);
+    }
+
     String date = DateTime.now().millisecondsSinceEpoch.toString();
-    Map<String, String> map = {
-      'petName': _petNameController.text,
-      'username': username,
-      'userProfileImage': userProfileImage,
-      'color': _colorController.text,
-      'genus': _genusController.text,
-      'gender': _choosenValue,
-      'age': _ageController.text,
-      'mobile': _currentMobileNo,
-      'photo': _image != null ? animalsImageLink! : '',
-      'video': fileMedia != null ? animalsVideoLink! : '',
+    Map<String, String> postMap = {
+      'postId': postId,
+      'postOwnerId': userProvider.currentUserMap['mobileNo'],
+      'postOwnerMobileNo': userProvider.currentUserMap['mobileNo'],
+      'postOwnerName': userProvider.currentUserMap['username'],
+      'postOwnerImage': userProvider.currentUserMap['profileImageLink'],
       'date': date,
-      'totalFollowings': '0',
+      'status': '',
+      'photo': _image != null ? postImageLink! : '',
+      'video': fileMedia != null ? postVideoLink! : '',
+      'animalToken': animalToken,
+      'animalName': _petNameController.text,
+      'animalColor': _colorController.text,
+      'animalAge': _ageController.text,
+      'animalGender': _choosenValue,
+      'animalGenus': _genusController.text,
+      'totalFollowers': '0',
       'totalComments': '0',
       'totalShares': '0',
-      'id': uuid
+      'groupId': '',
+      'shareId': ''
     };
-    await DatabaseManager()
-        .addAnimalsData(map, _currentMobileNo)
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userProvider.currentUserMap['mobileNo'])
+        .collection('myPosts')
+        .doc(postId)
+        .set({'postId': postId, 'date': date});
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userProvider.currentUserMap['mobileNo'])
+        .collection('myAnimals')
+        .doc(animalToken)
+        .set({'animalToken': animalToken});
+
+    await FirebaseFirestore.instance
+        .collection('Animals')
+        .doc(animalToken)
+        .set({
+      'postId': postId,
+      'animalToken': animalToken,
+      'postOwnerId': userProvider.currentUserMap['mobileNo'],
+    });
+
+    await FirebaseFirestore.instance
+        .collection('allPosts')
+        .doc(postId)
+        .set(postMap)
         .then((value) async {
-      if (value) {
-        _emptyFildCreator();
-        await animalProvider
-            .getMyAnimalsNumber()
-            .then((value) => Navigator.pop(context));
-      } else {}
+      _emptyFieldCreator();
+      await postProvider.getAllPosts();
+      Navigator.pop(context);
+      Navigator.push(context, MaterialPageRoute(builder: (context) => Home()));
     });
   }
 
-  _emptyFildCreator() {
+  _emptyFieldCreator() {
     _image = null;
-    _petPhoto = '';
-    _petvideo = '';
+    fileMedia = null;
+    _photo = '';
+    _video = '';
     _choosenValue = 'Male';
     _petNameController.clear();
     _colorController.clear();
@@ -663,18 +710,18 @@ class _AddAnimalState extends State<AddAnimal> {
       this.fileMedia = null;
 
       this._image = null;
-      _petPhoto = '';
-      _petvideo = '';
+      _photo = '';
+      _video = '';
     });
-    final _originalImage =
-        await ImagePicker().getImage(source: ImageSource.gallery);
+    final _originalImage = await ImagePicker()
+        .getImage(source: ImageSource.gallery, imageQuality: 25);
 
     if (_originalImage != null) {
       await ImageCropper.cropImage(
           sourcePath: _originalImage.path,
           aspectRatio: CropAspectRatio(ratioX: 1, ratioY: .7),
           androidUiSettings: AndroidUiSettings(
-            lockAspectRatio: true,
+            lockAspectRatio: false,
           )).then((value) {
         setState(() {
           _image = value;
@@ -686,12 +733,11 @@ class _AddAnimalState extends State<AddAnimal> {
   Future _getGalleryVideo() async {
     setState(() {
       this.fileMedia = null;
-      //   controller!.dispose();
       _image = null;
     });
     final file = await pickVideoFile();
-    _petPhoto = '';
-    _petvideo = '';
+    _photo = '';
+    _video = '';
     controller = VideoPlayerController.file(file)
       ..addListener(() => setState(() {}))
       ..setLooping(true)
@@ -708,10 +754,10 @@ class _AddAnimalState extends State<AddAnimal> {
       //  controller!.dispose();
       this._image = null;
     });
-    final _originalImage =
-        await ImagePicker().getImage(source: ImageSource.camera);
-    _petPhoto = '';
-    _petvideo = '';
+    final _originalImage = await ImagePicker()
+        .getImage(source: ImageSource.camera, imageQuality: 25);
+    _photo = '';
+    _video = '';
 
     if (_originalImage != null) {
       await ImageCropper.cropImage(
@@ -736,8 +782,8 @@ class _AddAnimalState extends State<AddAnimal> {
     final getMedia = ImagePicker().getVideo;
     final media = await getMedia(source: ImageSource.camera);
     final file = File(media!.path);
-    _petPhoto = '';
-    _petvideo = '';
+    _photo = '';
+    _video = '';
     if (file == null) {
       return;
     } else {

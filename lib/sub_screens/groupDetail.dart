@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_lover/demo_designs/group_animal_post.dart';
 import 'package:pet_lover/demo_designs/group_menu_demo.dart';
+import 'package:pet_lover/demo_designs/showGroupPost.dart';
 import 'package:pet_lover/home.dart';
 import 'package:pet_lover/model/group_menu_item.dart';
 import 'package:pet_lover/model/group_post.dart';
 import 'package:pet_lover/model/member.dart';
 import 'package:pet_lover/provider/groupProvider.dart';
+import 'package:pet_lover/provider/postProvider.dart';
 import 'package:pet_lover/provider/userProvider.dart';
 import 'package:pet_lover/sub_screens/AddPeopleInGroup.dart';
 import 'package:pet_lover/sub_screens/allGroupMembers.dart';
@@ -14,7 +16,9 @@ import 'package:pet_lover/sub_screens/create_group.dart';
 import 'package:pet_lover/sub_screens/group_post_add.dart';
 import 'package:pet_lover/sub_screens/groups.dart';
 import 'package:provider/provider.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 
+// ignore: must_be_immutable
 class GroupDetail extends StatefulWidget {
   String groupId;
   GroupDetail({Key? key, required this.groupId}) : super(key: key);
@@ -36,20 +40,18 @@ class _GroupDetailState extends State<GroupDetail> {
   String _description = '';
   String _currentUserProfileImage = '';
   List<Member> _members = [];
-  int _totalMembers = 0;
   bool? _isMember;
   String _admin = '';
   String _currentUserMobileNo = '';
   bool _loading = false;
-
   List<GroupPost> _groupPostLists = [];
-  ScrollController _scrollController = ScrollController();
-
   String? finalDate;
   Map<String, String> _currentUserInfoMap = {};
+  RefreshController _refreshController =
+      RefreshController(initialRefresh: false);
 
   Future _customInit(String groupId, GroupProvider groupProvider,
-      UserProvider userProvider) async {
+      UserProvider userProvider, PostProvider postProvider) async {
     _getGroupDetail(groupId, groupProvider);
     _isMemberOrNot(groupProvider, userProvider);
     _getCurrentUserDetail(userProvider);
@@ -57,44 +59,37 @@ class _GroupDetailState extends State<GroupDetail> {
     setState(() {
       count++;
     });
-
     await userProvider.getCurrentUserInfo().then((value) {
       _currentUserInfoMap = userProvider.currentUserMap;
     });
 
-    await groupProvider.getGroupPost(3, groupId).then((value) {
+    if (postProvider.allGroupPost.isEmpty) {
+      _loading = true;
+      await postProvider.getAllGroupPosts(groupId);
       setState(() {
-        _groupPostLists = groupProvider.groupPostList;
+        _loading = false;
       });
-    });
+    }
 
-    _scrollController.addListener(() {
-      if (_scrollController.offset >=
-          _scrollController.position.maxScrollExtent) {
-        print('scrolling max and getting more animals');
-        _getMoreAnimals(groupProvider);
-        print('The animal list length = ${_groupPostLists.length}');
-      }
+    _getGroupDetail(groupId, groupProvider);
+    _isMemberOrNot(groupProvider, userProvider);
+    _getCurrentUserDetail(userProvider);
+    _getMembers(groupId, groupProvider, userProvider);
+    setState(() {
+      count++;
     });
   }
 
-  _getMoreAnimals(GroupProvider groupProvider) async {
-    await groupProvider.getMorePost(3, groupId).then((value) {
-      setState(() {
-        _groupPostLists = groupProvider.groupPostList;
-      });
-    });
+  void _onRefresh(PostProvider postProvider, UserProvider userProvider) async {
+    await Future.delayed(Duration(milliseconds: 1000));
+    await postProvider.getAllGroupPosts(groupId);
+    _refreshController.refreshCompleted();
   }
 
-  Future _onRefresh(
-      UserProvider userProvider, GroupProvider groupProvider) async {
-    await groupProvider.getGroupPost(3, groupId).then((value) {
-      setState(() {
-        //  _groupPostLists.clear();
-
-        _groupPostLists = groupProvider.groupPostList;
-      });
-    });
+  void _onLoading(PostProvider postProvider) async {
+    await Future.delayed(Duration(milliseconds: 1000));
+    await postProvider.getMoreGroupPosts(groupId);
+    _refreshController.loadComplete();
   }
 
   _isMemberOrNot(GroupProvider groupProvider, UserProvider userProvider) async {
@@ -113,7 +108,6 @@ class _GroupDetailState extends State<GroupDetail> {
     await groupProvider.getAllMembers(groupId).then((value) {
       setState(() {
         _members = groupProvider.members;
-        _totalMembers = _members.length;
       });
     });
   }
@@ -140,30 +134,39 @@ class _GroupDetailState extends State<GroupDetail> {
     });
   }
 
+  Future<bool> _onBackPressed() async {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => Groups()));
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Group Details',
-          style: TextStyle(
-            color: Colors.black,
+    return WillPopScope(
+      onWillPop: _onBackPressed,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Group Details',
+            style: TextStyle(
+              color: Colors.black,
+            ),
           ),
-        ),
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.black,
+          backgroundColor: Colors.white,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (context) => Groups()));
+            },
           ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          elevation: 0.0,
         ),
-        elevation: 0.0,
+        resizeToAvoidBottomInset: false,
+        body: _bodyUI(context),
       ),
-      resizeToAvoidBottomInset: false,
-      body: _bodyUI(context),
     );
   }
 
@@ -171,154 +174,176 @@ class _GroupDetailState extends State<GroupDetail> {
     Size size = MediaQuery.of(context).size;
     final GroupProvider groupProvider = Provider.of<GroupProvider>(context);
     final UserProvider userProvider = Provider.of<UserProvider>(context);
-    if (count == 0) _customInit(groupId, groupProvider, userProvider);
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: () => _onRefresh(userProvider, groupProvider),
-        child: Container(
-          width: size.width,
-          height: size.height,
-          child: ListView(
-            controller: _scrollController,
+    final PostProvider postProvider = Provider.of<PostProvider>(context);
+    if (count == 0)
+      _customInit(groupId, groupProvider, userProvider, postProvider);
+    return SmartRefresher(
+      controller: _refreshController,
+      enablePullDown: true,
+      enablePullUp: true,
+      header: WaterDropHeader(),
+      onRefresh: () => _onRefresh(postProvider, userProvider),
+      onLoading: () => _onLoading(postProvider),
+      child: ListView(
+        children: [
+          Container(
+            height: size.height * .35,
+            color: Colors.grey.shade200,
+            child: Stack(
+              children: [
+                Container(
+                  width: size.width,
+                  height: size.height * .35,
+                  child: _groupImage == ''
+                      ? Center(
+                          child: Text(
+                          _groupName,
+                          style: TextStyle(fontSize: size.width * .05),
+                        ))
+                      : Image.network(
+                          _groupImage,
+                          fit: BoxFit.fill,
+                        ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: size.width * .04),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                height: size.height * .35,
-                color: Colors.grey.shade200,
-                child: Stack(
-                  children: [
-                    Container(
-                      width: size.width,
-                      height: size.height * .35,
-                      child: _groupImage == ''
-                          ? Center(
-                              child: Text(
-                              _groupName,
-                              style: TextStyle(fontSize: size.width * .05),
-                            ))
-                          : Image.network(
-                              _groupImage,
-                              fit: BoxFit.fill,
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                  padding: EdgeInsets.only(
-                      left: size.width * .04,
-                      top: size.width * .02,
-                      bottom: size.width * .02,
-                      right: size.width * .02),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _groupName,
-                        style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: size.width * .06),
-                      ),
-                      PopupMenuButton<MenuItem>(
-                          onSelected: (item) => onSelectedMenuItem(context,
-                              item, userProvider, groupProvider, _groupImage),
-                          itemBuilder: (context) {
-                            return _admin == userProvider.currentUserMobile
-                                ? MenuItems.adminGroupMenuItems
-                                    .map(buildItem)
-                                    .toList()
-                                : MenuItems.groupMenuItems
-                                    .map(buildItem)
-                                    .toList();
-                          })
-                    ],
-                  )),
-              Padding(
-                padding: EdgeInsets.only(
-                    left: size.width * .04, right: size.width * .04),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(Icons.security, size: size.width * .042),
-                    SizedBox(width: size.width * .01),
-                    Text(
-                      _privacy,
-                      style: TextStyle(
-                          color: Colors.black, fontSize: size.width * .04),
-                    ),
-                    SizedBox(width: size.width * .05),
-                    Icon(Icons.group, size: size.width * .042),
-                    SizedBox(width: size.width * .01),
-                    Text(
-                      _totalMembers.toString(),
-                      style: TextStyle(
-                          color: Colors.black, fontSize: size.width * .04),
-                    ),
-                    Text(
-                      _totalMembers < 2 ? ' Member' : ' Members',
-                      style: TextStyle(
-                          color: Colors.black, fontSize: size.width * .04),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: size.width * .035),
-              Container(
-                padding: EdgeInsets.only(
-                  left: size.width * .04,
-                  right: size.width * .04,
-                ),
-                width: size.width,
+                padding: EdgeInsets.only(left: size.width * .04),
+                width: size.width * .8,
                 child: Text(
-                  _description,
+                  _groupName,
                   style: TextStyle(
-                    color: Colors.black,
-                    fontSize: size.width * .04,
-                  ),
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: size.width * .06),
                 ),
               ),
-              SizedBox(height: size.width * .03),
-              _isMember == null
-                  ? Container(
-                      width: size.width,
-                      child: Center(child: CircularProgressIndicator()))
-                  : _isMember == true
-                      ? forMemberOfGroup(context)
-                      : Container(
-                          width: size.width,
-                          height: size.width * .1,
-                          padding: EdgeInsets.only(
-                              left: size.width * .04, right: size.width * .04),
-                          child: _loading
-                              ? Center(child: CircularProgressIndicator())
-                              : ElevatedButton(
-                                  onPressed: () {
-                                    String date = DateTime.now()
-                                        .millisecondsSinceEpoch
-                                        .toString();
-                                    _joinGroup(
-                                        groupProvider,
-                                        groupId,
-                                        userProvider.currentUserMobile,
-                                        date,
-                                        userProvider);
-                                  },
-                                  child: Text(
-                                    'Join $_groupName',
-                                    style: TextStyle(
-                                      fontSize: size.width * .04,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )),
-                        )
+              Container(
+                alignment: Alignment.centerRight,
+                width: size.width * .2,
+                child: PopupMenuButton<MenuItem>(
+                    onSelected: (item) => onSelectedMenuItem(context, item,
+                        userProvider, groupProvider, _groupImage),
+                    itemBuilder: (context) {
+                      return _admin == userProvider.currentUserMobile
+                          ? MenuItems.adminGroupMenuItems
+                              .map(buildItem)
+                              .toList()
+                          : MenuItems.groupMenuItems.map(buildItem).toList();
+                    }),
+              )
             ],
           ),
-        ),
+          Padding(
+            padding: EdgeInsets.only(
+                left: size.width * .04, right: size.width * .04),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.security, size: size.width * .042),
+                SizedBox(width: size.width * .01),
+                Text(
+                  _privacy,
+                  style: TextStyle(
+                      color: Colors.black, fontSize: size.width * .04),
+                ),
+                SizedBox(width: size.width * .05),
+                Icon(Icons.group, size: size.width * .042),
+                SizedBox(width: size.width * .01),
+                Text(
+                  groupProvider.totalGroupMembers.toString(),
+                  style: TextStyle(
+                      color: Colors.black, fontSize: size.width * .04),
+                ),
+                Text(
+                  groupProvider.totalGroupMembers < 2 ? ' Member' : ' Members',
+                  style: TextStyle(
+                      color: Colors.black, fontSize: size.width * .04),
+                ),
+                SizedBox(width: size.width * .04),
+                Visibility(
+                  visible: _isMember == true ? true : false,
+                  child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    AddPeopleInGroup(groupId: groupId)));
+                      },
+                      style: ButtonStyle(
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50.0),
+                      ))),
+                      child: Row(
+                        children: [Icon(Icons.add), Text('Add')],
+                      )),
+                )
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.only(
+              left: size.width * .04,
+              right: size.width * .04,
+            ),
+            width: size.width,
+            child: Text(
+              _description,
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: size.width * .04,
+              ),
+            ),
+          ),
+          SizedBox(height: size.width * .02),
+          _isMember == null
+              ? Container(
+                  width: size.width,
+                  child: Center(child: CircularProgressIndicator()))
+              : _isMember == true
+                  ? forMemberOfGroup(context, postProvider)
+                  : Container(
+                      width: size.width,
+                      height: size.width * .1,
+                      padding: EdgeInsets.only(
+                          left: size.width * .04, right: size.width * .04),
+                      child: _loading
+                          ? Center(child: CircularProgressIndicator())
+                          : ElevatedButton(
+                              onPressed: () {
+                                String date = DateTime.now()
+                                    .millisecondsSinceEpoch
+                                    .toString();
+                                _joinGroup(
+                                    groupProvider,
+                                    groupId,
+                                    userProvider.currentUserMobile,
+                                    date,
+                                    userProvider);
+                              },
+                              child: Text(
+                                'Join $_groupName',
+                                style: TextStyle(
+                                  fontSize: size.width * .04,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )),
+                    )
+        ],
       ),
     );
   }
 
-  Widget forMemberOfGroup(BuildContext context) {
+  Widget forMemberOfGroup(BuildContext context, PostProvider postProvider) {
     Size size = MediaQuery.of(context).size;
     return Container(
       child: Column(
@@ -333,26 +358,29 @@ class _GroupDetailState extends State<GroupDetail> {
                       : NetworkImage(_currentUserProfileImage) as ImageProvider,
                   radius: size.width * .05,
                 ),
-                GestureDetector(
+                InkWell(
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => GroupPostAdd(groupId: groupId)),
+                          builder: (context) => GroupPostAdd(
+                                groupId: groupId,
+                                postId: '',
+                              )),
                     );
                   },
                   child: Padding(
                     padding: EdgeInsets.only(left: size.width * .04),
                     child: Container(
-                      width: size.width * .73,
+                      width: size.width * .75,
                       padding: EdgeInsets.fromLTRB(size.width * .03,
                           size.width * .02, size.width * .03, size.width * .02),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(size.width * .04),
+                        borderRadius: BorderRadius.circular(size.width * .05),
                         border: Border.all(color: Colors.black),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(8.0),
+                        padding: EdgeInsets.all(size.width * .01),
                         child: Text(
                           'Write something...',
                           style: TextStyle(
@@ -380,7 +408,7 @@ class _GroupDetailState extends State<GroupDetail> {
                         context,
                         MaterialPageRoute(
                             builder: (context) =>
-                                GroupPostAdd(groupId: groupId)),
+                                GroupPostAdd(groupId: groupId, postId: '')),
                       );
                     },
                     child: Row(
@@ -411,7 +439,7 @@ class _GroupDetailState extends State<GroupDetail> {
                         context,
                         MaterialPageRoute(
                             builder: (context) =>
-                                GroupPostAdd(groupId: groupId)),
+                                GroupPostAdd(groupId: groupId, postId: '')),
                       );
                     },
                     child: Row(
@@ -436,37 +464,17 @@ class _GroupDetailState extends State<GroupDetail> {
               thickness: size.width * .002,
               color: Colors.grey,
               height: size.width * .01),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: ClampingScrollPhysics(),
-            itemCount: _groupPostLists.length,
-            itemBuilder: (context, index) {
-              DateTime miliDate = new DateTime.fromMillisecondsSinceEpoch(
-                  int.parse(_groupPostLists[index].date!));
-              var format = new DateFormat("yMMMd").add_jm();
-              finalDate = format.format(miliDate);
-
-              return GroupAnimalPost(
-                profileImageLink: _groupPostLists[index].userProfileImage!,
-                username: _groupPostLists[index].username!,
-                mobile: _groupPostLists[index].mobile!,
-                date: finalDate!,
-                numberOfLoveReacts: _groupPostLists[index].totalFollowings!,
-                numberOfComments: _groupPostLists[index].totalComments!,
-                numberOfShares: _groupPostLists[index].totalShares!,
-                petId: _groupPostLists[index].id!,
-                petName: _groupPostLists[index].petName!,
-                petColor: _groupPostLists[index].color!,
-                petGenus: _groupPostLists[index].genus!,
-                petGender: _groupPostLists[index].gender!,
-                petAge: _groupPostLists[index].age!,
-                petImage: _groupPostLists[index].photo!,
-                petVideo: _groupPostLists[index].video!,
-                currentUserImage: _currentUserInfoMap['profileImageLink']!,
-                status: _groupPostLists[index].status!,
-                groupId: _groupPostLists[index].groupId!,
-              );
-            },
+          Container(
+            width: size.width,
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: ClampingScrollPhysics(),
+              itemCount: postProvider.allGroupPost.length,
+              itemBuilder: (context, index) {
+                return ShowGroupPost(
+                    index: index, post: postProvider.allGroupPost[index]);
+              },
+            ),
           ),
         ],
       ),
@@ -493,12 +501,6 @@ class _GroupDetailState extends State<GroupDetail> {
     String groupImage,
   ) {
     switch (item) {
-      case MenuItems.itemAddPeople:
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => AddPeopleInGroup(groupId: groupId)));
-        break;
       case MenuItems.allMembers:
         Navigator.push(
             context,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pet_lover/model/Comment.dart';
 import 'package:pet_lover/model/animal.dart';
 import 'package:pet_lover/model/chat_user_model.dart';
+import 'package:pet_lover/provider/userProvider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AnimalProvider extends ChangeNotifier {
@@ -25,6 +26,9 @@ class AnimalProvider extends ChangeNotifier {
   int _userFollowersNumber = 0;
   List<Animal> _searchedAnimals = [];
   List<ChatUserModel> _chatUserList = <ChatUserModel>[];
+  List<Animal> _myGroupAllPost = [];
+  List<ChatUserModel> _followingChatUserList = [];
+  List<ChatUserModel> _allChatUserList = [];
 
   get numberOfFollowers => _numberOfFollowers;
   get favouriteList => _favouriteList;
@@ -41,6 +45,9 @@ class AnimalProvider extends ChangeNotifier {
   get userSharedAnimals => _userSharedAnimals;
   get searchedAnimals => _searchedAnimals;
   get chatUserList => _chatUserList;
+  get myGroupAllPost => _myGroupAllPost;
+  get followingChatUserList => _followingChatUserList;
+  get allChatUserList => _allChatUserList;
 
   Future<List<Animal>> getAnimals(int limit) async {
     print('getAnimals() running');
@@ -61,6 +68,8 @@ class AnimalProvider extends ChangeNotifier {
 
       querySnapshot.docChanges.forEach((element) {
         Animal animal = Animal(
+          status: element.doc['status'],
+          groupId: element.doc['groupId'],
           userProfileImage: element.doc['userProfileImage'],
           username: element.doc['username'],
           mobile: element.doc['mobile'],
@@ -105,6 +114,8 @@ class AnimalProvider extends ChangeNotifier {
 
       querySnapshot.docChanges.forEach((element) {
         Animal animal = Animal(
+          status: element.doc['status'],
+          groupId: element.doc['groupId'],
           userProfileImage: element.doc['userProfileImage'],
           username: element.doc['username'],
           mobile: element.doc['mobile'],
@@ -147,6 +158,7 @@ class AnimalProvider extends ChangeNotifier {
 
   Future<void> getUserSharedAnimals(String userMobileNo) async {
     try {
+      _userSharedAnimals.clear();
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userMobileNo)
@@ -154,30 +166,32 @@ class AnimalProvider extends ChangeNotifier {
           .orderBy('date', descending: true)
           .get()
           .then((snapshot) {
-        _userSharedAnimals.clear();
         snapshot.docChanges.forEach((element) async {
-          bool exists = await animalExistsOrNot(element.doc['id']);
-          if (exists == true) {
-            Animal animal = Animal(
-              userProfileImage: element.doc['userProfileImage'],
-              username: element.doc['username'],
-              mobile: element.doc['mobile'],
+          // bool exists = await animalExistsOrNot(element.doc['id']);
+          // print('value of is exists = $exists');
+          // if (exists) {
+
+          // }
+
+          Animal animal = Animal(
+              status: element.doc['status'],
+              groupId: element.doc['groupId'],
               age: element.doc['age'],
               color: element.doc['color'],
               date: element.doc['date'],
               gender: element.doc['gender'],
               genus: element.doc['genus'],
               id: element.doc['id'],
+              mobile: element.doc['mobile'],
               petName: element.doc['petName'],
               photo: element.doc['photo'],
               totalComments: element.doc['totalComments'],
               totalFollowings: element.doc['totalFollowings'],
               totalShares: element.doc['totalShares'],
-              video: element.doc['video'],
-            );
-            _userSharedAnimals.add(animal);
-            notifyListeners();
-          }
+              userProfileImage: element.doc['userProfileImage'],
+              username: element.doc['username'],
+              video: element.doc['video']);
+          _userSharedAnimals.add(animal);
         });
       });
     } catch (error) {
@@ -224,7 +238,8 @@ class AnimalProvider extends ChangeNotifier {
         'date': date,
         'animalOwnerMobileNo': animalOwnerMobileNo,
         'commenter': currentUserMobileNo,
-        'totalLikes': totalLikes
+        'totalLikes': totalLikes,
+        'petId': petId
       });
 
       await getNumberOfComments(petId).then((value) async {
@@ -315,7 +330,8 @@ class AnimalProvider extends ChangeNotifier {
       String followingName,
       String followerName,
       String followingImage,
-      String followerImage) async {
+      String followerImage,
+      UserProvider userProvider) async {
     try {
       if (mobileNo != _currentMobileNo) {
         await FirebaseFirestore.instance
@@ -348,7 +364,7 @@ class AnimalProvider extends ChangeNotifier {
             'lastMessageTime': Timestamp.now(),
             'isSeen': false
           }).then((value) async {
-            await getAllChatUser();
+            await getAllChatUser(userProvider);
           });
         });
       }
@@ -399,29 +415,37 @@ class AnimalProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> getAllChatUser() async {
+  Future<void> getAllChatUser(UserProvider userProvider) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('chatUsers')
-          .orderBy('lastMessageTime', descending: true)
-          .get()
-          .then((snapShot) {
-        _chatUserList.clear();
-        snapShot.docChanges.forEach((element) {
-          ChatUserModel chatUsers = ChatUserModel(
-              id: element.doc['id'],
-              followingName: element.doc['followingName'],
-              followerName: element.doc['followerName'],
-              followingImageLink: element.doc['followingImageLink'],
-              followerImageLink: element.doc['followerImageLink'],
-              followerNumber: element.doc['followerNumber'],
-              followingNumber: element.doc['followingNumber'],
-              lastMessage: element.doc['lastMessage'],
-              lastMessageTime: element.doc['lastMessageTime'],
-              isSeen: element.doc['isSeen']);
-          _chatUserList.add(chatUsers);
+      await userProvider.getCurrentMobileNo().then((value) async {
+        await FirebaseFirestore.instance
+            .collection('chatUsers')
+            .orderBy('lastMessageTime', descending: true)
+            .get()
+            .then((snapShot) {
+          _chatUserList.clear();
+          snapShot.docChanges.forEach((element) {
+            if (element.doc['followerNumber'] ==
+                    userProvider.currentUserMobile ||
+                element.doc['followingNumber'] ==
+                    userProvider.currentUserMobile) {
+              ChatUserModel chatUsers = ChatUserModel(
+                  id: element.doc['id'],
+                  followingName: element.doc['followingName'],
+                  followerName: element.doc['followerName'],
+                  followingImageLink: element.doc['followingImageLink'],
+                  followerImageLink: element.doc['followerImageLink'],
+                  followerNumber: element.doc['followerNumber'],
+                  followingNumber: element.doc['followingNumber'],
+                  lastMessage: element.doc['lastMessage'],
+                  lastMessageTime: element.doc['lastMessageTime'],
+                  isSeen: element.doc['isSeen']);
+              _chatUserList.add(chatUsers);
+            }
+          });
+
+          return _chatUserList;
         });
-        return _chatUserList;
       });
       notifyListeners();
     } catch (error) {
@@ -429,13 +453,91 @@ class AnimalProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteChat(String followingNumber, String followerNumber) async {
+  Future<void> getFollowingChatUser(UserProvider userProvider) async {
+    try {
+      await userProvider.getCurrentMobileNo().then((value) async {
+        await FirebaseFirestore.instance
+            .collection('chatUsers')
+            .where('followingNumber', isEqualTo: userProvider.currentUserMobile)
+            .orderBy('lastMessageTime', descending: true)
+            .get()
+            .then((snapShot) {
+          _chatUserList.clear();
+          snapShot.docChanges.forEach((element) {
+            ChatUserModel chatUsers = ChatUserModel(
+                id: element.doc['id'],
+                followingName: element.doc['followingName'],
+                followerName: element.doc['followerName'],
+                followingImageLink: element.doc['followingImageLink'],
+                followerImageLink: element.doc['followerImageLink'],
+                followerNumber: element.doc['followerNumber'],
+                followingNumber: element.doc['followingNumber'],
+                lastMessage: element.doc['lastMessage'],
+                lastMessageTime: element.doc['lastMessageTime'],
+                isSeen: element.doc['isSeen']);
+            _followingChatUserList.add(chatUsers);
+            _allChatUserList.add(chatUsers);
+          });
+          return _chatUserList;
+        });
+      });
+      notifyListeners();
+    } catch (error) {
+      print(error.toString());
+    }
+  }
+
+  Future<void> unfollow(String followerNumber, String followingNumber,
+      UserProvider userProvider, int index) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(followerNumber)
+        .collection('myFollowings')
+        .doc(followingNumber)
+        .get()
+        .then((snapshot) async {
+      if (snapshot.exists) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(followerNumber)
+            .collection('myFollowings')
+            .doc(followingNumber)
+            .delete()
+            .then((value) async {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(followingNumber)
+              .collection('followers')
+              .doc(followerNumber)
+              .get()
+              .then((value) async {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(followingNumber)
+                .collection('follower')
+                .doc(followerNumber)
+                .delete()
+                .then((value) async {
+              await deleteChat(
+                  followingNumber, followerNumber, userProvider, index);
+              notifyListeners();
+            });
+          });
+        });
+      }
+    });
+  }
+
+  Future<void> deleteChat(String followingNumber, String followerNumber,
+      UserProvider userProvider, int index) async {
     await FirebaseFirestore.instance
         .collection('chatUsers')
         .doc(followerNumber + followingNumber)
         .delete()
         .then((value) async {
-      await getAllChatUser();
+      _chatUserList.removeAt(index);
+      await getAllChatUser(userProvider);
+      notifyListeners();
     });
   }
 
@@ -480,6 +582,8 @@ class AnimalProvider extends ChangeNotifier {
       _currentUserAnimals.clear();
       querySnapshot.docChanges.forEach((element) {
         Animal animal = Animal(
+          status: element.doc['status'],
+          groupId: element.doc['groupId'],
           userProfileImage: element.doc['userProfileImage'],
           username: element.doc['username'],
           mobile: element.doc['mobile'],
@@ -517,6 +621,8 @@ class AnimalProvider extends ChangeNotifier {
       _otherUserAnimals.clear();
       querySnapshot.docChanges.forEach((element) {
         Animal animal = Animal(
+          status: element.doc['status'],
+          groupId: element.doc['groupId'],
           userProfileImage: element.doc['userProfileImage'],
           username: element.doc['username'],
           mobile: element.doc['mobile'],
@@ -548,6 +654,7 @@ class AnimalProvider extends ChangeNotifier {
   }
 
   Future<void> getMyAnimalsNumber() async {
+    _numberOfMyAnimals = 0;
     String? _currentMobileNo = await _getCurrentMobileNo();
     QuerySnapshot querySnapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -603,6 +710,8 @@ class AnimalProvider extends ChangeNotifier {
     sharedAnimalRef.get().then((snapshot) async {
       if (!snapshot.exists) {
         await sharedAnimalRef.set({
+          'groupId': _animal.groupId,
+          'status': _animal.status,
           'userProfileImage': _animal.userProfileImage,
           'username': _animal.username,
           'mobile': _animal.mobile,
@@ -632,10 +741,9 @@ class AnimalProvider extends ChangeNotifier {
             'totalShares': _numberOfShares.toString(),
           });
         });
-
-        notifyListeners();
       }
     });
+    notifyListeners();
   }
 
   Future<Animal> getSpecificAnimal(String petId) async {
@@ -643,6 +751,8 @@ class AnimalProvider extends ChangeNotifier {
         await FirebaseFirestore.instance.collection('Animals').doc(petId).get();
 
     Animal animal = Animal(
+      status: documentSnapshot['status'],
+      groupId: documentSnapshot['groupId'],
       userProfileImage: documentSnapshot['userProfileImage'],
       username: documentSnapshot['username'],
       mobile: documentSnapshot['mobile'],
@@ -738,6 +848,8 @@ class AnimalProvider extends ChangeNotifier {
               .then((value) {
             value.docChanges.forEach((element) {
               Animal animal = Animal(
+                status: element.doc['status'],
+                groupId: element.doc['groupId'],
                 userProfileImage: element.doc['userProfileImage'],
                 username: element.doc['username'],
                 mobile: element.doc['mobile'],
@@ -795,6 +907,8 @@ class AnimalProvider extends ChangeNotifier {
         _searchedAnimals.clear();
         snapshot.docChanges.forEach((element) {
           Animal animal = Animal(
+            status: element.doc['status'],
+            groupId: element.doc['groupId'],
             userProfileImage: element.doc['userProfileImage'],
             username: element.doc['username'],
             mobile: element.doc['mobile'],
@@ -818,5 +932,77 @@ class AnimalProvider extends ChangeNotifier {
     } catch (error) {
       print('Searching animal failed, error: $error');
     }
+  }
+
+  Future<void> getMyGroupAllPost(UserProvider userProvider) async {
+    String _currentMobileNo = userProvider.currentUserMobile;
+
+    await FirebaseFirestore.instance
+        .collection('groupPosts')
+        .limit(20)
+        .get()
+        .then((snapshot) {
+      snapshot.docChanges.forEach((element) async {
+        Animal animal = Animal(
+          status: element.doc['status'],
+          groupId: element.doc['groupId'],
+          userProfileImage: element.doc['userProfileImage'],
+          username: element.doc['username'],
+          mobile: element.doc['mobile'],
+          age: element.doc['age'],
+          color: element.doc['color'],
+          date: element.doc['date'],
+          gender: element.doc['gender'],
+          genus: element.doc['genus'],
+          id: element.doc['id'],
+          petName: element.doc['petName'],
+          photo: element.doc['photo'],
+          totalComments: element.doc['totalComments'],
+          totalFollowings: element.doc['totalFollowings'],
+          totalShares: element.doc['totalShares'],
+          video: element.doc['video'],
+        );
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_currentMobileNo)
+            .collection('myGroups')
+            .doc(animal.groupId)
+            .get()
+            .then((snapshot) {
+          if (snapshot.exists) {
+            _myGroupAllPost.add(animal);
+            notifyListeners();
+          }
+        });
+      });
+    });
+  }
+
+  Future<void> editComment(
+      String petId, String commentId, String newComment) async {
+    await FirebaseFirestore.instance
+        .collection('Animals')
+        .doc(petId)
+        .collection('comments')
+        .doc(commentId)
+        .update({
+      'comment': newComment,
+    });
+  }
+
+  Future<void> deleteComment(String petId, String commentId) async {
+    await FirebaseFirestore.instance
+        .collection('Animals')
+        .doc(petId)
+        .collection('comments')
+        .doc(commentId)
+        .delete();
+
+    await getNumberOfComments(petId).then((value) async {
+      await FirebaseFirestore.instance.collection('Animals').doc(petId).update({
+        'totalComments': _numberOfComments.toString(),
+      });
+    });
   }
 }
