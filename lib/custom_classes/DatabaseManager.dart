@@ -27,7 +27,7 @@ class DatabaseManager {
       'profileImageLink': profileImageLink,
       'password': password,
       'about': about
-    }).then((value) async {});
+    });
   }
 
   Future<bool> addAnimalsData(
