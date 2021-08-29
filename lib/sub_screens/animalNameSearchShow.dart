@@ -426,37 +426,6 @@ class _AnimalNameSearchPostShowState extends State<AnimalNameSearchPostShow> {
                   ),
                 )
               ])),
-          ListTile(
-            title: Text(
-              'Add comment...',
-              style: TextStyle(
-                color: Colors.grey,
-              ),
-            ),
-            leading: CircleAvatar(
-              backgroundImage:
-                  userProvider.currentUserMap['profileImageLink'] == ''
-                      ? AssetImage('assets/profile_image_demo.png')
-                      : NetworkImage(
-                              userProvider.currentUserMap['profileImageLink'])
-                          as ImageProvider,
-              radius: size.width * .04,
-            ),
-            onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => CommetPage(
-                            id: widget.post.postId,
-                            animalOwnerMobileNo: widget.post.postOwnerId,
-                            allPostIndex: widget.index,
-                            groupPostIndex: null,
-                            favouriteIndex: null,
-                            myPostIndex: null,
-                            otherUserPostIndex: null,
-                          )));
-            },
-          ),
           Container(
             padding:
                 EdgeInsets.fromLTRB(size.width * .02, 0, size.width * .02, 0),

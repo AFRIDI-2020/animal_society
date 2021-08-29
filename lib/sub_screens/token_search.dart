@@ -377,6 +377,9 @@ class _TokenSearchState extends State<TokenSearch> {
                                                               ],
                                                             ),
                                                             Row(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
                                                               children: [
                                                                 Text(
                                                                     'Address: ',
@@ -389,17 +392,21 @@ class _TokenSearchState extends State<TokenSearch> {
                                                                         fontSize:
                                                                             size.width *
                                                                                 .038)),
-                                                                Text(
-                                                                    userProvider
-                                                                            .specificUserMap[
-                                                                        'address'],
-                                                                    style: TextStyle(
-                                                                        color: Colors
-                                                                            .grey
-                                                                            .shade700,
-                                                                        fontSize:
-                                                                            size.width *
-                                                                                .038)),
+                                                                Container(
+                                                                  width:
+                                                                      size.width *
+                                                                          .5,
+                                                                  child: Text(
+                                                                      userProvider
+                                                                              .specificUserMap[
+                                                                          'address'],
+                                                                      style: TextStyle(
+                                                                          color: Colors
+                                                                              .grey
+                                                                              .shade700,
+                                                                          fontSize:
+                                                                              size.width * .038)),
+                                                                ),
                                                               ],
                                                             ),
                                                             Row(
